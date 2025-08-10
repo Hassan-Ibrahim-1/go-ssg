@@ -1,0 +1,47 @@
+Be able to convert markdown files to html
+upload that site to github
+document work on some projects that im working on
+
+have a folder of md files that represents the structure of website.
+figure out how to translate md files to html and css.
+
+figure out how styling / themes should work, maybe i can define a theme.css file 
+    that file could define styling for all the elements that this ssg will provide
+    like it could provide styles for components like the nav bar, blog list, fonts, etc
+
+this is mostly for dev logs / personal stuff
+be able to add blogs in a content/ directory
+those blogs get added to the /blog/{blog-name} end point
+
+be able to add custom pages like /about
+maybe each end point is just a directory?
+
+the root / end point should just be a list of blogs
+follow matklads stlying on this
+
+there should be a home / nav bar with all the end points listed there so stuff like about, blogs, etc
+should also have the author's name on the top left
+
+there should also be a thing at the bottom with stuff like my github linked.
+again follow matklad's website on this
+
+be able to add an rss feed to the blog, this should be configurable.
+    be able to configure how many blogs to include based on date, etc
+    
+blogs should have meta data like date published, description
+
+figure out an easy way to deploy
+
+development web server
+    hot reloading
+
+usage:
+    to add a new blog just create a new file in content/
+    to add images / other resources just add files to static/
+    the markdown should be ergonomic and easy to work with
+        - be able to easily add links, images, videos, code snippets
+    easily add a description within the markdown (maybe it could be shown in
+        the blog list as a preview)
+    one command deployment to github pages
+    automatically generated rss feed
+    easily add end points that get added to the nav bar. stuff like about, etc
