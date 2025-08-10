@@ -14,10 +14,10 @@ func main() {
 		log.Fatal(err)
 	}
 
-	html, err := markdown.ToHTML(md)
+	html := markdown.ToHTML(md)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	fmt.Println(html)
+	fmt.Println(string(html))
 }

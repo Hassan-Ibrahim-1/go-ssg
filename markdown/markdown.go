@@ -1,9 +1,12 @@
 package markdown
 
-func ToHTML(markdown []byte) ([]byte, error) {
-	return nil, nil
-}
+import (
+	"github.com/gomarkdown/markdown"
+	"github.com/microcosm-cc/bluemonday"
+)
 
-func parse() {
-
+func ToHTML(md []byte) []byte {
+	unsanitized := markdown.ToHTML(md, nil, nil)
+	html := bluemonday.UGCPolicy().SanitizeBytes(unsanitized)
+	return html
 }

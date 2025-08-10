@@ -1,8 +1,3 @@
 ### Hello, World
-Sample text...
 
-* Bulleted list
-* Another one
-
-1. Numbered List
-2. Number 2
+[Here's a link](http://localhost:8080)

@@ -8,6 +8,9 @@ figure out how to translate md files to html and css.
 figure out how styling / themes should work, maybe i can define a theme.css file 
     that file could define styling for all the elements that this ssg will provide
     like it could provide styles for components like the nav bar, blog list, fonts, etc
+    have a themes/ folder with css files. the name of the css files can be references in the ssg.toml file
+        theme = "gruvbox"
+        theme = "rosepine"
 
 this is mostly for dev logs / personal stuff
 be able to add blogs in a content/ directory
@@ -28,7 +31,7 @@ again follow matklad's website on this
 be able to add an rss feed to the blog, this should be configurable.
     be able to configure how many blogs to include based on date, etc
     
-blogs should have meta data like date published, description
+blogs should have meta data like date published, description, is the blog a draft etc
 
 figure out an easy way to deploy
 
@@ -45,3 +48,11 @@ usage:
     one command deployment to github pages
     automatically generated rss feed
     easily add end points that get added to the nav bar. stuff like about, etc
+    create a .toml file in the root to specify basic stuff like:
+        - deployment location
+        - project name
+        - theme
+        - should drafts be built
+
+Markdown:
+    https://learn.microsoft.com/en-us/contribute/content/markdown-reference
