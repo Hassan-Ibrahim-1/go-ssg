@@ -13,7 +13,7 @@ func parseMetadata(md []byte) (map[string]string, []byte, error) {
 	start, end := getMetadataSlice(lines)
 	// no metadata
 	if start == -1 || end == -1 {
-		return nil, nil, nil
+		return nil, md, nil
 	}
 
 	metadata := lines[start:end]

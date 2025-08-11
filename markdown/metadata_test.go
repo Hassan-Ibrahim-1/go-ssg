@@ -75,7 +75,15 @@ description = A basic markdown file
 
 Hello, World
 `,
-			nil, "", nil,
+			nil, `
++++
+author = Jane Doe
+title = Test markdown
+description = A basic markdown file
+
+Hello, World
+`,
+			nil,
 		},
 		{`
 +++
@@ -85,7 +93,15 @@ description = A basic markdown file+++
 
 Hello, World
 `,
-			nil, "", nil,
+			nil, `
++++
+author = Jane Doe
+title = Test markdown
+description = A basic markdown file+++
+
+Hello, World
+`,
+			nil,
 		},
 		{`
 +++
@@ -95,7 +111,16 @@ description = A basic markdown file
 
 Hello, World
 `,
-			nil, "", nil,
+			nil,
+			`
++++
+author = Jane Doe
+title = +++Test markdown
+description = A basic markdown file
+
+Hello, World
+`,
+			nil,
 		},
 	}
 
