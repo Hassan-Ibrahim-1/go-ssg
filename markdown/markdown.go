@@ -12,6 +12,6 @@ type HTMLDoc struct {
 
 func ToHTML(md []byte) (HTMLDoc, error) {
 	unsanitized := markdown.ToHTML(md, nil, nil)
-	html := bluemonday.UGCPolicy().SanitizeBytes(unsanitized)
-	return html, nil
+	_ = bluemonday.UGCPolicy().SanitizeBytes(unsanitized)
+	return HTMLDoc{}, nil
 }
