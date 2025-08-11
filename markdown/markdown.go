@@ -18,11 +18,15 @@ func ToHTML(md []byte) (HTMLDoc, error) {
 		return HTMLDoc{}, fmt.Errorf("Failed to parse metadata: %w", err)
 	}
 
-	unsanitized := markdown.ToHTML(content, nil, nil)
-	html := bluemonday.UGCPolicy().SanitizeBytes(unsanitized)
+	html := convertMdSanitized(content)
 
 	return HTMLDoc{
 		Metadata: metadata,
 		Content:  html,
 	}, nil
+}
+
+func convertMdSanitized(md []byte) []byte {
+	unsanitized := markdown.ToHTML(md, nil, nil)
+	return bluemonday.UGCPolicy().SanitizeBytes(unsanitized)
 }
