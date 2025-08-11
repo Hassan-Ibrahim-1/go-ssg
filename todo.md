@@ -1,3 +1,4 @@
+# TODO
 Be able to convert markdown files to html
 upload that site to github
 document work on some projects that im working on
@@ -54,5 +55,8 @@ usage:
         - theme
         - should drafts be built
 
-Markdown:
-    https://learn.microsoft.com/en-us/contribute/content/markdown-reference
+### Tomorrow
+    create a web server using site.Nodes
+    in nodes the file extension should be replaced from ".md" to ".html" when converting
+        maybe Build shouldn't even alter the files and should just construct the nodes, but then whats the point?
+    be able to fully build the project, copy hugo on this, place html files where they place them
