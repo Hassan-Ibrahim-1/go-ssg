@@ -30,14 +30,51 @@ Hello, World
 			},
 			"Hello, World\n", nil,
 		},
+		{`
+
+
+
++++
+
+author=Jane Doe
+
+title=Test markdown
+
+description = A basic markdown file
+
+
+
+
++++
+
+Hello, World
+`,
+			map[string]string{
+				"author":      "Jane Doe",
+				"title":       "Test markdown",
+				"description": "A basic markdown file",
+			},
+			"Hello, World\n", nil,
+		},
+		{`
++++
+author = Jane Doe
+title: Test markdown
+description = A basic markdown file
++++
+
+Hello, World
+`,
+			nil, "", fmt.Errorf("Not a valid key value pair \"title: Test markdown\", expected key = value"),
+		},
 	}
 
 	for i, tt := range tests {
 		t.Run(fmt.Sprintf("test_%d", i), func(t *testing.T) {
 			metadata, remaining, err := parseMetadata([]byte(tt.input))
-			if err != tt.expectedErr {
+			if !errEqual(err, tt.expectedErr) {
 				t.Fatalf(
-					"Unexpected err expected=%v. got=%v",
+					"Unexpected err expected=%v.\n got=%v",
 					tt.expectedErr,
 					err,
 				)
@@ -50,6 +87,7 @@ Hello, World
 					metadata,
 				)
 			}
+
 			if !bytes.Equal([]byte(tt.expectedRemaining), remaining) {
 				t.Errorf(
 					"bad remaining markdown. expected=%q. got=%q",
@@ -59,6 +97,16 @@ Hello, World
 			}
 		})
 	}
+}
+
+func errEqual(err1, err2 error) bool {
+	if err1 == nil && err2 == nil {
+		return true
+	}
+	if err1 == nil || err2 == nil {
+		return false
+	}
+	return err1.Error() == err2.Error()
 }
 
 func TestGetMetadataSlice(t *testing.T) {
