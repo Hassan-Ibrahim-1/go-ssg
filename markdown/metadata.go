@@ -39,7 +39,7 @@ func parseMetadata(md []byte) (map[string]string, []byte, error) {
 	}
 
 	// remove the '+++'
-	remaining := bytes.Join(lines[end+2:], []byte{'\n'})
+	remaining := bytes.Join(lines[end+1:], []byte{'\n'})
 	return keyValues, remaining, nil
 }
 

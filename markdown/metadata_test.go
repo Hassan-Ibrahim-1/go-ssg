@@ -28,7 +28,7 @@ Hello, World
 				"title":       "Test markdown",
 				"description": "A basic markdown file",
 			},
-			"Hello, World\n", nil,
+			"\nHello, World\n", nil,
 		},
 		{`
 
@@ -54,7 +54,7 @@ Hello, World
 				"title":       "Test markdown",
 				"description": "A basic markdown file",
 			},
-			"Hello, World\n", nil,
+			"\nHello, World\n", nil,
 		},
 		{`
 +++
@@ -121,6 +121,49 @@ description = A basic markdown file
 Hello, World
 `,
 			nil,
+		},
+		{`
++++
++++
+
+Hello, World
+`,
+			map[string]string{}, "\nHello, World\n", nil,
+		},
+		{`
++++
++++
+`,
+			map[string]string{}, "", nil,
+		},
+		{"Hello World", map[string]string{}, "Hello World", nil},
+		{"\nHello World", map[string]string{}, "\nHello World", nil},
+		{`
++++
++++
+Hello World
+`,
+			map[string]string{}, "Hello World\n", nil,
+		},
+		{`
++++
+key = value
+true = !false
++++
+Hello World
+`,
+			map[string]string{
+				"key":  "value",
+				"true": "!false",
+			}, "Hello World\n", nil,
+		},
+		{`
+test
++++
++++
+Hello World
+`,
+			map[string]string{}, "\ntest\n+++\n+++\nHello World\n", nil,
 		},
 	}
 
