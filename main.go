@@ -19,9 +19,6 @@ func main() {
 	}
 
 	for _, entry := range dirContents {
-		if entry.IsDir() {
-
-		}
 	}
 
 	md, err := os.ReadFile("content/blog.md")

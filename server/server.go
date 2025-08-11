@@ -2,6 +2,6 @@ package server
 
 import "net/http"
 
-func New(addr string, dir string) *http.Server {
+func New(addr string, ) *http.Server {
     mux := 
 }
