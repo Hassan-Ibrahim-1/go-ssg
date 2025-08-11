@@ -87,18 +87,14 @@ func TestLoadDirectoryEntries(t *testing.T) {
 		t.Fatal("failed to setup test directory:", err)
 	}
 
-	contentDir := filepath.Join(tmpDir, "content")
-	innerFile := filepath.Join(tmpDir, "content", "inner.md")
-	outerFile := filepath.Join(tmpDir, "outer.md")
-
 	expectedEntries := []Entry{
 		&testEntry{
-			contentDir,
+			tmpDir.contentDir,
 			DirectoryEntry,
 			"",
 			[]Entry{
 				&testEntry{
-					innerFile,
+					tmpDir.innerFile,
 					FileEntry,
 					innerContent,
 					nil,
@@ -106,14 +102,14 @@ func TestLoadDirectoryEntries(t *testing.T) {
 			},
 		},
 		&testEntry{
-			outerFile,
+			tmpDir.outerFile,
 			FileEntry,
 			outerContent,
 			nil,
 		},
 	}
 
-	entries, err := loadDirectoryEntries(tmpDir)
+	entries, err := loadDirectoryEntries(tmpDir.name)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,14 +119,48 @@ func TestLoadDirectoryEntries(t *testing.T) {
 	}
 
 	expectedNodes := []Node{
-		{contentDir, DirectoryNode, nil, []Node{
-			{innerFile, HTMLNode, innerHTML, nil},
+		{tmpDir.contentDir, DirectoryNode, nil, []Node{
+			{tmpDir.innerFile, HTMLNode, innerHTML, nil},
 		}},
-		{outerFile, HTMLNode, outerHTML, nil},
+		{tmpDir.outerFile, HTMLNode, outerHTML, nil},
 	}
 
 	nodes := BuildFromEntries(entries)
 	testNodesEqual(t, nodes, expectedNodes)
+}
+
+func TestBuild(t *testing.T) {
+	outerContent := "foo bar baz"
+	innerContent := "Hello World"
+
+	innerHTML := markdown.ToHTML([]byte(innerContent))
+	outerHTML := markdown.ToHTML([]byte(outerContent))
+
+	tmpDir, err := setupTestDirectory(t, innerContent, outerContent)
+	if err != nil {
+		t.Fatal("failed to setup test directory:", err)
+	}
+
+	expectedNodes := []Node{
+		{tmpDir.contentDir, DirectoryNode, nil, []Node{
+			{tmpDir.innerFile, HTMLNode, innerHTML, nil},
+		}},
+		{tmpDir.outerFile, HTMLNode, outerHTML, nil},
+	}
+
+	nodes, err := Build(tmpDir.name)
+	if err != nil {
+		t.Fatal("failed to build tmpDir:", err)
+	}
+
+	testNodesEqual(t, nodes, expectedNodes)
+}
+
+type testDirectory struct {
+	name       string
+	contentDir string
+	innerFile  string
+	outerFile  string
 }
 
 // creates the following structure
@@ -141,12 +171,12 @@ func setupTestDirectory(
 	t *testing.T,
 	innerContent string,
 	outerContent string,
-) (string, error) {
+) (testDirectory, error) {
 	tmpDir := t.TempDir()
 
 	err := os.Mkdir(filepath.Join(tmpDir, "content"), 0755)
 	if err != nil {
-		return "", err
+		return testDirectory{}, err
 	}
 
 	err = os.WriteFile(
@@ -155,7 +185,7 @@ func setupTestDirectory(
 		0644,
 	)
 	if err != nil {
-		return "", err
+		return testDirectory{}, err
 	}
 
 	err = os.WriteFile(
@@ -164,10 +194,15 @@ func setupTestDirectory(
 		0644,
 	)
 	if err != nil {
-		return "", err
+		return testDirectory{}, err
 	}
 
-	return tmpDir, nil
+	return testDirectory{
+		name:       tmpDir,
+		contentDir: filepath.Join(tmpDir, "content"),
+		innerFile:  filepath.Join(tmpDir, "content", "inner.md"),
+		outerFile:  filepath.Join(tmpDir, "outer.md"),
+	}, nil
 }
 
 func testEntriesEqual(t *testing.T, entries, expected []Entry) bool {
