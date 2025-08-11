@@ -31,10 +31,26 @@ type Node struct {
 	Children []Node
 }
 
+func (n Node) String() string {
+	var children strings.Builder
+
+	for _, child := range n.Children {
+		children.WriteString(child.String() + "\n")
+	}
+
+	return fmt.Sprintf(
+		"{Name: %q, Type: %d, Content: %s, Children: [%s]}\n",
+		n.Name,
+		n.Type,
+		string(n.Content),
+		children.String(),
+	)
+}
+
 type Entry interface {
 	Name() string
 
-	// []byte should be nil if Type() is DirectoryEntry
+	// returns nil if Type() is DirectoryEntry
 	Content() []byte
 
 	Type() EntryType

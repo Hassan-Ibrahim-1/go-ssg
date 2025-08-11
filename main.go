@@ -5,23 +5,31 @@ import (
 	"log"
 	"os"
 
-	"github.com/Hassan-Ibrahim-1/go-ssg/markdown"
+	"github.com/Hassan-Ibrahim-1/go-ssg/server"
+	"github.com/Hassan-Ibrahim-1/go-ssg/site"
 )
 
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Println("usage: ssg [directory]")
+		return
 	}
 
-	md, err := os.ReadFile("content/blog.md")
+	nodes, err := site.Build(os.Args[1])
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalln("Failed to build site:", err)
 	}
 
-	html := markdown.ToHTML(md)
+	fmt.Println(nodes)
+
+	addr := ":4200"
+	s := server.New(addr, nodes)
+	defer s.Close()
+
+	fmt.Println("listening on", addr)
+	err = s.ListenAndServe()
+
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalln("server failed:", err)
 	}
-
-	fmt.Println(string(html))
 }

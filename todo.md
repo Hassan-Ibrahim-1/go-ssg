@@ -57,6 +57,5 @@ usage:
 
 ### Tomorrow
     create a web server using site.Nodes
-    in nodes the file extension should be replaced from ".md" to ".html" when converting
-        maybe Build shouldn't even alter the files and should just construct the nodes, but then whats the point?
+    -- in nodes the file extension should be replaced from ".md" to ".html" when converting
     be able to fully build the project, copy hugo on this, place html files where they place them
