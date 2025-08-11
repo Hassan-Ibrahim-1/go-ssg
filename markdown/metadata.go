@@ -9,7 +9,12 @@ import (
 // returns remaining contents of the markdown file not including the metadata
 func parseMetadata(md []byte) (map[string]string, []byte, error) {
 	lines := bytes.Split(md, []byte{'\n'})
+
 	start, end := getMetadataSlice(lines)
+	// no metadata
+	if start == -1 || end == -1 {
+		return nil, nil, nil
+	}
 
 	metadata := lines[start:end]
 

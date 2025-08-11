@@ -67,6 +67,36 @@ Hello, World
 `,
 			nil, "", fmt.Errorf("Not a valid key value pair \"title: Test markdown\", expected key = value"),
 		},
+		{`
++++
+author = Jane Doe
+title = Test markdown
+description = A basic markdown file
+
+Hello, World
+`,
+			nil, "", nil,
+		},
+		{`
++++
+author = Jane Doe
+title = Test markdown
+description = A basic markdown file+++
+
+Hello, World
+`,
+			nil, "", nil,
+		},
+		{`
++++
+author = Jane Doe
+title = +++Test markdown
+description = A basic markdown file
+
+Hello, World
+`,
+			nil, "", nil,
+		},
 	}
 
 	for i, tt := range tests {
