@@ -55,7 +55,20 @@ usage:
         - theme
         - should drafts be built
 
-### Tomorrow
-    create a web server using site.Nodes
+### Now
+    read metadata from blogs
+        - author
+        - title
+        - date published
+        - description
+        - tags [zig, go, programming, etc]
+        - draft
+
+    -- create a web server using site.Nodes
     -- in nodes the file extension should be replaced from ".md" to ".html" when converting
     be able to fully build the project, copy hugo on this, place html files where they place them
+
+    figure out how to convert links in md files to other md files to html links
+
+    if a directory is built using . or ./ then figure out how to properly strip paths
+    test server/

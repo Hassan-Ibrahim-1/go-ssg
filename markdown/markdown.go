@@ -5,8 +5,13 @@ import (
 	"github.com/microcosm-cc/bluemonday"
 )
 
-func ToHTML(md []byte) []byte {
+type HTMLDoc struct {
+	Metadata map[string]string
+	Content  []byte
+}
+
+func ToHTML(md []byte) (HTMLDoc, error) {
 	unsanitized := markdown.ToHTML(md, nil, nil)
 	html := bluemonday.UGCPolicy().SanitizeBytes(unsanitized)
-	return html
+	return html, nil
 }

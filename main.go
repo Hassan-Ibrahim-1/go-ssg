@@ -15,7 +15,7 @@ func main() {
 		return
 	}
 
-	nodes, err := site.Build(os.Args[1])
+	nodes, err := site.Build(os.Args[0])
 	if err != nil {
 		log.Fatalln("Failed to build site:", err)
 	}

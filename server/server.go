@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -49,6 +50,7 @@ func (n NodeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (n NodeHandler) resolveURLPath(path string) *site.Node {
+	fmt.Println("resolving", path)
 	node := matchNodeName(path, n.nodes)
 	if node == nil {
 		for _, base := range n.nodes {
@@ -68,6 +70,7 @@ func matchNodeName(name string, nodes []site.Node) *site.Node {
 		}
 
 		nodePath := removeUntil(node.Name, "/")
+		fmt.Println("node path", nodePath)
 		if nodePath != name {
 			continue
 		}
