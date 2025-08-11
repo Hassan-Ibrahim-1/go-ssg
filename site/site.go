@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/Hassan-Ibrahim-1/go-ssg/markdown"
 )
@@ -162,10 +163,18 @@ func buildNode(entry Entry) *Node {
 		}
 
 	case FileEntry:
+		const MarkdownExtension = ".md"
+		name := entry.Name()
 		content := entry.Content()
-		content = markdown.ToHTML(content)
+		// convert all markdown files to html
+		if strings.HasSuffix(name, MarkdownExtension) {
+			extensionIndex := len(name) - len(MarkdownExtension)
+			name = name[:extensionIndex] + ".html"
+			content = markdown.ToHTML(content)
+		}
+
 		return &Node{
-			Name:     entry.Name(),
+			Name:     name,
 			Type:     HTMLNode,
 			Children: nil,
 			Content:  content,

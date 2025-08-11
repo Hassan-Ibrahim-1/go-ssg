@@ -45,7 +45,7 @@ func TestBuildFromEntries(t *testing.T) {
 				&testEntry{"index.md", FileEntry, testContentMarkdown, nil},
 			},
 			[]Node{
-				{"index.md", HTMLNode, testContentHTML, nil},
+				{"index.html", HTMLNode, testContentHTML, nil},
 			},
 		},
 		{
@@ -61,7 +61,7 @@ func TestBuildFromEntries(t *testing.T) {
 			},
 			[]Node{
 				{"content/", DirectoryNode, nil, []Node{
-					{"content/index.md", HTMLNode, testContentHTML, nil},
+					{"content/index.html", HTMLNode, testContentHTML, nil},
 				}},
 			},
 		},
@@ -119,14 +119,34 @@ func TestLoadDirectoryEntries(t *testing.T) {
 	}
 
 	expectedNodes := []Node{
-		{tmpDir.contentDir, DirectoryNode, nil, []Node{
-			{tmpDir.innerFile, HTMLNode, innerHTML, nil},
-		}},
-		{tmpDir.outerFile, HTMLNode, outerHTML, nil},
+		{
+			tmpDir.contentDir,
+			DirectoryNode,
+			nil,
+			[]Node{
+				{
+					changeFileExtension(tmpDir.innerFile, ".md", ".html"),
+					HTMLNode,
+					innerHTML,
+					nil,
+				},
+			},
+		},
+		{
+			changeFileExtension(tmpDir.outerFile, ".md", ".html"),
+			HTMLNode,
+			outerHTML,
+			nil,
+		},
 	}
 
 	nodes := BuildFromEntries(entries)
 	testNodesEqual(t, nodes, expectedNodes)
+}
+
+func changeFileExtension(file, from, to string) string {
+	extensionIndex := len(file) - len(from)
+	return file[:extensionIndex] + to
 }
 
 func TestBuild(t *testing.T) {
@@ -143,9 +163,19 @@ func TestBuild(t *testing.T) {
 
 	expectedNodes := []Node{
 		{tmpDir.contentDir, DirectoryNode, nil, []Node{
-			{tmpDir.innerFile, HTMLNode, innerHTML, nil},
+			{
+				changeFileExtension(tmpDir.innerFile, ".md", ".html"),
+				HTMLNode,
+				innerHTML,
+				nil,
+			},
 		}},
-		{tmpDir.outerFile, HTMLNode, outerHTML, nil},
+		{
+			changeFileExtension(tmpDir.outerFile, ".md", ".html"),
+			HTMLNode,
+			outerHTML,
+			nil,
+		},
 	}
 
 	nodes, err := Build(tmpDir.name)
