@@ -75,46 +75,30 @@ func TestBuildFromEntries(t *testing.T) {
 	}
 }
 
-func TestBuild(t *testing.T) {
-	tmpDir := t.TempDir()
-
+func TestLoadDirectoryEntries(t *testing.T) {
 	outerContent := "foo bar baz"
 	innerContent := "Hello World"
 
-	// innerHTML := markdown.ToHTML([]byte(innerContent))
-	// outerHTML := markdown.ToHTML([]byte(outerContent))
+	innerHTML := markdown.ToHTML([]byte(innerContent))
+	outerHTML := markdown.ToHTML([]byte(outerContent))
 
-	err := os.Mkdir(filepath.Join(tmpDir, "content"), 0755)
+	tmpDir, err := setupTestDirectory(t, innerContent, outerContent)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatal("failed to setup test directory:", err)
 	}
 
-	err = os.WriteFile(
-		filepath.Join(tmpDir, "content", "inner.md"),
-		[]byte(innerContent),
-		0644,
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = os.WriteFile(
-		filepath.Join(tmpDir, "outer.md"),
-		[]byte(outerContent),
-		0644,
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
+	contentDir := filepath.Join(tmpDir, "content")
+	innerFile := filepath.Join(tmpDir, "content", "inner.md")
+	outerFile := filepath.Join(tmpDir, "outer.md")
 
 	expectedEntries := []Entry{
 		&testEntry{
-			filepath.Join(tmpDir, "content"),
+			contentDir,
 			DirectoryEntry,
 			"",
 			[]Entry{
 				&testEntry{
-					filepath.Join(tmpDir, "content", "inner.md"),
+					innerFile,
 					FileEntry,
 					innerContent,
 					nil,
@@ -122,7 +106,7 @@ func TestBuild(t *testing.T) {
 			},
 		},
 		&testEntry{
-			filepath.Join(tmpDir, "outer.md"),
+			outerFile,
 			FileEntry,
 			outerContent,
 			nil,
@@ -137,6 +121,53 @@ func TestBuild(t *testing.T) {
 	if !testEntriesEqual(t, entries, expectedEntries) {
 		return
 	}
+
+	expectedNodes := []Node{
+		{contentDir, DirectoryNode, nil, []Node{
+			{innerFile, HTMLNode, innerHTML, nil},
+		}},
+		{outerFile, HTMLNode, outerHTML, nil},
+	}
+
+	nodes := BuildFromEntries(entries)
+	testNodesEqual(t, nodes, expectedNodes)
+}
+
+// creates the following structure
+// tmp/content/inner.md
+// tmp/outer.md
+// where tmp is the string that is returned
+func setupTestDirectory(
+	t *testing.T,
+	innerContent string,
+	outerContent string,
+) (string, error) {
+	tmpDir := t.TempDir()
+
+	err := os.Mkdir(filepath.Join(tmpDir, "content"), 0755)
+	if err != nil {
+		return "", err
+	}
+
+	err = os.WriteFile(
+		filepath.Join(tmpDir, "content", "inner.md"),
+		[]byte(innerContent),
+		0644,
+	)
+	if err != nil {
+		return "", err
+	}
+
+	err = os.WriteFile(
+		filepath.Join(tmpDir, "outer.md"),
+		[]byte(outerContent),
+		0644,
+	)
+	if err != nil {
+		return "", err
+	}
+
+	return tmpDir, nil
 }
 
 func testEntriesEqual(t *testing.T, entries, expected []Entry) bool {
