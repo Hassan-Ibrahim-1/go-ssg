@@ -88,6 +88,10 @@ func TestNodeHandler(t *testing.T) {
 		{defaultTestSite(), "/content", "content index"},
 		{defaultTestSite(), "/content/index.html", "content index"},
 		{defaultTestSite(), "/content/inner.html", "content inner"},
+		{defaultTestSite(), "/content/foo.html", "index"},
+		{defaultTestSite(), "/inner.html", "index"},
+		{defaultTestSite(), "/content.html", "index"},
+		{defaultTestSite(), "/content/", "content index"},
 		{defaultTestSite(), "/", "index"},
 		{defaultTestSite(), "/index.html", "index"},
 	}

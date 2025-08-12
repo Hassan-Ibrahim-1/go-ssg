@@ -68,21 +68,25 @@ func (n NodeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Write(node.Content)
 }
 
-func (n NodeHandler) homePage(w http.ResponseWriter, r *http.Request) {
+func (n NodeHandler) homePage(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
 	w.Write(n.indexHTML)
 }
 
 func (n NodeHandler) resolveURLPath(path string) *site.Node {
-	fmt.Println("resolving", path)
+	trimmedPath := trimSlash(path)
+	return matchNode(trimmedPath, n.nodes)
+}
 
-	for _, node := range n.nodes {
-		if node.Name == trimSlash(path) {
-			fmt.Println("resolved to", node.Name)
+func matchNode(name string, nodes []site.Node) *site.Node {
+	for _, node := range nodes {
+		if name == node.Name {
 			return &node
 		}
+		if n := matchNode(name, node.Children); n != nil {
+			return n
+		}
 	}
-
 	return nil
 }
 
