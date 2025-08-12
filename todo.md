@@ -55,8 +55,14 @@ usage:
         - theme
         - should drafts be built
 
-### Now
-    read metadata from blogs
+### Tomorrow
+    - create html templates to integrate meta data into
+    - create an index.html file that contains a blog list
+    - toml config file. (themes, website name, deployment info)
+    - get themes working - there should be a themes/ dir with css files
+        that you can choose in the config file
+
+    -- read metadata from blogs
         - author
         - title
         - date published
