@@ -116,7 +116,10 @@ func newDirectoryEntry(
 	for i, entry := range dirEntries {
 		children[i], err = newDirectoryEntry(entry, deName)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf(
+				"Failed to create a directory entry: %w",
+				err,
+			)
 		}
 	}
 
@@ -131,7 +134,7 @@ func newDirectoryEntry(
 func loadDirectoryEntries(dir string) ([]Entry, error) {
 	dirContents, err := os.ReadDir(dir)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Failed to open directory: %w", err)
 	}
 
 	entries := make([]Entry, len(dirContents))
@@ -149,34 +152,42 @@ func Build(dir string) ([]Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	return BuildFromEntries(entries), nil
+	return BuildFromEntries(entries)
 }
 
-func buildNodes(entries []Entry) []Node {
+func buildNodes(entries []Entry) ([]Node, error) {
 	nodes := make([]Node, 0, len(entries))
 	for _, entry := range entries {
-		node := buildNode(entry)
+		node, err := buildNode(entry)
+		if err != nil {
+			return nil, err
+		}
 		if node == nil {
 			continue
 		}
+
 		nodes = append(nodes, *node)
 	}
-	return nodes
+	return nodes, nil
 }
 
-func buildNode(entry Entry) *Node {
+func buildNode(entry Entry) (*Node, error) {
 	switch entry.Type() {
 	case DirectoryEntry:
 		children := entry.Children()
 		if len(children) == 0 {
-			return nil
+			return nil, nil
+		}
+		childrenNodes, err := buildNodes(children)
+		if err != nil {
+			return nil, err
 		}
 		return &Node{
 			Name:     entry.Name(),
 			Type:     DirectoryNode,
 			Content:  nil,
-			Children: buildNodes(children),
-		}
+			Children: childrenNodes,
+		}, nil
 
 	case FileEntry:
 		const MarkdownExtension = ".md"
@@ -186,7 +197,12 @@ func buildNode(entry Entry) *Node {
 		if strings.HasSuffix(name, MarkdownExtension) {
 			extensionIndex := len(name) - len(MarkdownExtension)
 			name = name[:extensionIndex] + ".html"
-			content = markdown.ToHTML(content)
+			html, err := markdown.ToHTML(content)
+			if err != nil {
+				return nil, err
+			}
+			// TODO: wrap this content in a template to use the metadata
+			content = html.Content
 		}
 
 		return &Node{
@@ -194,12 +210,12 @@ func buildNode(entry Entry) *Node {
 			Type:     HTMLNode,
 			Children: nil,
 			Content:  content,
-		}
+		}, nil
 	}
 	// unreachable
 	panic(fmt.Sprint("unreachabe. invalid entry type:", entry.Type()))
 }
 
-func BuildFromEntries(entries []Entry) []Node {
+func BuildFromEntries(entries []Entry) ([]Node, error) {
 	return buildNodes(entries)
 }
