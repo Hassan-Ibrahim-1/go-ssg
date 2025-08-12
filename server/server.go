@@ -31,32 +31,34 @@ func New(addr string, nodes []site.Node) (*http.Server, error) {
 }
 
 type NodeHandler struct {
-	nodes     []site.Node
+	nodes []site.Node
+	// FIXME:
 	indexHTML []byte
 }
 
 func (n NodeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path == "/" {
-		w.Header().Set("Content-Type", "text/html")
-		w.Write(n.indexHTML)
-		return
-	}
-
 	node := n.resolveURLPath(r.URL.Path)
 	if node == nil {
-		http.NotFound(w, r)
+		n.homePage(w, r)
 		return
 	}
 
 	if node.Type == site.DirectoryNode {
+		foundNodeIndex := false
 		for _, child := range node.Children {
 			if strings.HasSuffix(child.Name, "/index.html") {
 				node = &child
+				foundNodeIndex = true
 				break
 			}
 		}
+		if !foundNodeIndex {
+			n.homePage(w, r)
+			return
+		}
 	}
 
+	// ???
 	if node.Content == nil {
 		http.NotFound(w, r)
 		return
@@ -66,46 +68,26 @@ func (n NodeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Write(node.Content)
 }
 
-func (n NodeHandler) resolveURLPath(path string) *site.Node {
-	fmt.Println("resolving", path)
-	node := matchNodeName(path, n.nodes)
-	if node == nil {
-		for _, base := range n.nodes {
-			if strings.HasSuffix(base.Name, "/index.html") {
-				node = &base
-				break
-			}
-		}
-	}
-	if node != nil {
-		fmt.Println("resolved to", node.Name)
-	}
-	return node
+func (n NodeHandler) homePage(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html")
+	w.Write(n.indexHTML)
 }
 
-func matchNodeName(name string, nodes []site.Node) *site.Node {
-	for _, node := range nodes {
-		if n := matchNodeName(name, node.Children); n != nil {
-			return n
-		}
+func (n NodeHandler) resolveURLPath(path string) *site.Node {
+	fmt.Println("resolving", path)
 
-		nodePath := removeUntil(node.Name, "/")
-		fmt.Println("node path", nodePath)
-		if nodePath != name {
-			continue
+	for _, node := range n.nodes {
+		if node.Name == trimSlash(path) {
+			fmt.Println("resolved to", node.Name)
+			return &node
 		}
-
-		return &node
 	}
+
 	return nil
 }
 
-func removeUntil(s, delim string) string {
-	i := strings.Index(s, delim)
-	if i != -1 {
-		return s[i:]
-	}
-	return s
+func trimSlash(s string) string {
+	return strings.TrimSuffix(strings.TrimPrefix(s, "/"), "/")
 }
 
 //go:embed templates/index.html
