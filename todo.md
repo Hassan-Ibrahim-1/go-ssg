@@ -56,7 +56,7 @@ usage:
         - should drafts be built
 
 ### Tomorrow
-    - create html templates to integrate meta data into
+    -- create html templates to integrate meta data into
     - create an index.html file that contains a blog list
     - toml config file. (themes, website name, deployment info)
     - get themes working - there should be a themes/ dir with css files
@@ -78,3 +78,4 @@ usage:
 
     if a directory is built using . or ./ then figure out how to properly strip paths
     test server/
+    rewrite matchNodeName. /content/index.md gets resolved to /index.html

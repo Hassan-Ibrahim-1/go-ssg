@@ -23,7 +23,10 @@ func main() {
 	fmt.Println(nodes)
 
 	addr := ":4200"
-	s := server.New(addr, nodes)
+	s, err := server.New(addr, nodes)
+	if err != nil {
+		log.Fatalln("Failed to create server", err)
+	}
 	defer s.Close()
 
 	fmt.Println("listening on", addr)

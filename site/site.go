@@ -1,7 +1,10 @@
 package site
 
 import (
+	"bytes"
+	_ "embed"
 	"fmt"
+	"html/template"
 	"os"
 	"path/filepath"
 	"strings"
@@ -168,6 +171,7 @@ func buildNodes(entries []Entry) ([]Node, error) {
 
 		nodes = append(nodes, *node)
 	}
+
 	return nodes, nil
 }
 
@@ -197,12 +201,19 @@ func buildNode(entry Entry) (*Node, error) {
 		if strings.HasSuffix(name, MarkdownExtension) {
 			extensionIndex := len(name) - len(MarkdownExtension)
 			name = name[:extensionIndex] + ".html"
-			html, err := markdown.ToHTML(content)
+			doc, err := markdown.ToHTML(content)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("markdown.ToHTML failed: %w", err)
 			}
-			// TODO: wrap this content in a template to use the metadata
-			content = html.Content
+
+			content, err = generateBlogHTML(doc)
+			if err != nil {
+				return nil, fmt.Errorf(
+					"failed to generate blog html for %s: %w",
+					name,
+					err,
+				)
+			}
 		}
 
 		return &Node{
@@ -214,6 +225,46 @@ func buildNode(entry Entry) (*Node, error) {
 	}
 	// unreachable
 	panic(fmt.Sprint("unreachabe. invalid entry type:", entry.Type()))
+}
+
+type blogTemplate struct {
+	Title         string
+	AuthorName    string
+	PublishedDate string
+	Blog          template.HTML
+}
+
+// dd-mm-yyyy
+const dateLayout = "02-01-2006"
+
+//go:embed templates/blog.html
+var blogRes string
+var blogTmpl = template.Must(template.New("blog").Parse(blogRes))
+
+func generateBlogHTML(doc markdown.HTMLDoc) ([]byte, error) {
+	author, _ := doc.Metadata["author"]
+
+	dateString, _ := doc.Metadata["date"]
+
+	title, ok := doc.Metadata["title"]
+	if !ok {
+		return nil, fmt.Errorf("blog title not found")
+	}
+
+	blogInfo := blogTemplate{
+		Title:         title,
+		AuthorName:    author,
+		PublishedDate: dateString,
+		Blog:          template.HTML(doc.Content),
+	}
+
+	var buf bytes.Buffer
+	err := blogTmpl.Execute(&buf, blogInfo)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to execute blog template: %w", err)
+	}
+
+	return buf.Bytes(), nil
 }
 
 func BuildFromEntries(entries []Entry) ([]Node, error) {

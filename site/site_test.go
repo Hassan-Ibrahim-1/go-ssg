@@ -3,6 +3,7 @@ package site
 import (
 	"bytes"
 	"fmt"
+	"html/template"
 	"os"
 	"path/filepath"
 	"testing"
@@ -34,8 +35,18 @@ func (te *testEntry) Children() []Entry {
 }
 
 func TestBuildFromEntries(t *testing.T) {
-	testContentMarkdown := "Hello World"
-	testContentHTML := markdown.ToHTML([]byte(testContentMarkdown))
+	testContentMarkdown := "+++\ntitle= Test Author\n+++\nHello World"
+
+	doc, err := markdown.ToHTML([]byte(testContentMarkdown))
+	if err != nil {
+		t.Fatalf("ToHTML failed: %v", err)
+	}
+
+	testContentHTML, err := generateBlogHTML(doc)
+	if err != nil {
+		t.Fatalf("failed to generate blog html: %v", err)
+	}
+
 	tests := []struct {
 		entries  []Entry
 		expected []Node
@@ -69,18 +80,38 @@ func TestBuildFromEntries(t *testing.T) {
 
 	for i, tt := range tests {
 		t.Run(fmt.Sprintf("test_%d", i), func(t *testing.T) {
-			nodes := BuildFromEntries(tt.entries)
+			nodes, err := BuildFromEntries(tt.entries)
+			if err != nil {
+				t.Fatalf("Failed to build nodes: %v", err)
+			}
+
 			testNodesEqual(t, nodes, tt.expected)
 		})
 	}
 }
 
 func TestLoadDirectoryEntries(t *testing.T) {
-	outerContent := "foo bar baz"
-	innerContent := "Hello World"
+	outerContent := "+++\ntitle= Test Blog\n+++\nfoo bar baz"
+	innerContent := "+++\ntitle= Test Blog\n+++\nHello World"
 
-	innerHTML := markdown.ToHTML([]byte(innerContent))
-	outerHTML := markdown.ToHTML([]byte(outerContent))
+	innerDoc, err := markdown.ToHTML([]byte(innerContent))
+	if err != nil {
+		t.Fatalf("ToHTML failed: %v", err)
+	}
+
+	outerDoc, err := markdown.ToHTML([]byte(outerContent))
+	if err != nil {
+		t.Fatalf("ToHTML failed: %v", err)
+	}
+
+	innerHTML, err := generateBlogHTML(innerDoc)
+	if err != nil {
+		t.Errorf("Failed to generate blog html: %v", err)
+	}
+	outerHTML, err := generateBlogHTML(outerDoc)
+	if err != nil {
+		t.Errorf("Failed to generate blog html: %v", err)
+	}
 
 	tmpDir, err := setupTestDirectory(t, innerContent, outerContent)
 	if err != nil {
@@ -140,7 +171,11 @@ func TestLoadDirectoryEntries(t *testing.T) {
 		},
 	}
 
-	nodes := BuildFromEntries(entries)
+	nodes, err := BuildFromEntries(entries)
+	if err != nil {
+		t.Fatalf("BuildFromEntries failed: %v", err)
+	}
+
 	testNodesEqual(t, nodes, expectedNodes)
 }
 
@@ -150,11 +185,28 @@ func changeFileExtension(file, from, to string) string {
 }
 
 func TestBuild(t *testing.T) {
-	outerContent := "foo bar baz"
-	innerContent := "Hello World"
+	innerContent := "+++\ntitle= Test Blog\n+++\nHello World"
+	outerContent := "+++\ntitle= Test Blog\n+++\nfoo bar baz"
 
-	innerHTML := markdown.ToHTML([]byte(innerContent))
-	outerHTML := markdown.ToHTML([]byte(outerContent))
+	innerDoc, err := markdown.ToHTML([]byte(innerContent))
+	if err != nil {
+		t.Fatalf("ToHTML failed: %v", err)
+	}
+
+	outerDoc, err := markdown.ToHTML([]byte(outerContent))
+	if err != nil {
+		t.Fatalf("ToHTML failed: %v", err)
+	}
+
+	innerHTML, err := generateBlogHTML(innerDoc)
+	if err != nil {
+		t.Errorf("Failed to generate blog html: %v", err)
+	}
+
+	outerHTML, err := generateBlogHTML(outerDoc)
+	if err != nil {
+		t.Errorf("Failed to generate blog html: %v", err)
+	}
 
 	tmpDir, err := setupTestDirectory(t, innerContent, outerContent)
 	if err != nil {
@@ -186,6 +238,96 @@ func TestBuild(t *testing.T) {
 	testNodesEqual(t, nodes, expectedNodes)
 }
 
+func TestGenerateBlogHTML(t *testing.T) {
+	tests := []struct {
+		md string
+	}{
+		{`
++++
+title = A Test Blog
+author = Test Author
+date = 01-06-2025
++++
+The brown fox jumped over the lazy dog.
+`,
+		},
+	}
+
+	for i, tt := range tests {
+		t.Run(fmt.Sprintf("test_%d", i), func(t *testing.T) {
+			doc, err := markdown.ToHTML([]byte(tt.md))
+			if err != nil {
+				t.Fatalf("ToHTML failed: %v", err)
+			}
+
+			html, err := generateBlogHTML(doc)
+			if err != nil {
+				t.Fatalf("generateBlogHTML failed: %v", err)
+			}
+
+			blogInfo := blogTemplate{
+				Title:         doc.Metadata["title"],
+				AuthorName:    doc.Metadata["author"],
+				PublishedDate: doc.Metadata["date"],
+				Blog:          template.HTML(doc.Content),
+			}
+
+			var expected bytes.Buffer
+			err = blogTmpl.Execute(&expected, blogInfo)
+			if err != nil {
+				t.Fatalf("Failed to execute blog template: %v", err)
+			}
+
+			if !bytes.Equal(html, expected.Bytes()) {
+				t.Errorf(
+					"bad html template. expected=%s\ngot=%s.",
+					expected.String(),
+					string(html),
+				)
+			}
+		})
+	}
+}
+
+func TestGenerateIndexHTML(t *testing.T) {
+	tests := []struct {
+		title string
+		blogs []string
+	}{
+		{"A test blog", []string{"blog 1", "blog 2", "blog 3"}},
+		{"", []string{}},
+	}
+
+	for i, tt := range tests {
+		t.Run(fmt.Sprintf("test_%d", i), func(t *testing.T) {
+			nodes := make([]Node, len(tt.blogs))
+			for i := range tt.blogs {
+				nodes[i] = Node{Name: tt.blogs[i]}
+			}
+			rpi := rootPageInfo{tt.title, nodes}
+			html, err := generateIndexHTML(rpi)
+			if err != nil {
+				t.Fatalf("generteIndexHTML failed: %v", err)
+			}
+
+			var buf bytes.Buffer
+			err = indexTmpl.Execute(&buf, rpi)
+			if err != nil {
+				t.Fatalf("indexTmpl.Execute failed: %v", err)
+			}
+			expected := buf.Bytes()
+
+			if !bytes.Equal(html, expected) {
+				t.Errorf(
+					"bad html template. expected=%s. got=%s",
+					expected,
+					html,
+				)
+			}
+		})
+	}
+}
+
 type testDirectory struct {
 	name       string
 	contentDir string
@@ -196,7 +338,6 @@ type testDirectory struct {
 // creates the following structure
 // tmp/content/inner.md
 // tmp/outer.md
-// where tmp is the string that is returned
 func setupTestDirectory(
 	t *testing.T,
 	innerContent string,
