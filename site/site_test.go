@@ -120,12 +120,12 @@ func TestLoadDirectoryEntries(t *testing.T) {
 
 	expectedEntries := []Entry{
 		&testEntry{
-			tmpDir.contentDir,
+			"content",
 			DirectoryEntry,
 			"",
 			[]Entry{
 				&testEntry{
-					tmpDir.innerFile,
+					"content/inner.md",
 					FileEntry,
 					innerContent,
 					nil,
@@ -133,7 +133,7 @@ func TestLoadDirectoryEntries(t *testing.T) {
 			},
 		},
 		&testEntry{
-			tmpDir.outerFile,
+			"outer.md",
 			FileEntry,
 			outerContent,
 			nil,
@@ -151,12 +151,12 @@ func TestLoadDirectoryEntries(t *testing.T) {
 
 	expectedNodes := []Node{
 		{
-			tmpDir.contentDir,
+			"content",
 			DirectoryNode,
 			nil,
 			[]Node{
 				{
-					changeFileExtension(tmpDir.innerFile, ".md", ".html"),
+					"content/inner.html",
 					HTMLNode,
 					innerHTML,
 					nil,
@@ -164,7 +164,7 @@ func TestLoadDirectoryEntries(t *testing.T) {
 			},
 		},
 		{
-			changeFileExtension(tmpDir.outerFile, ".md", ".html"),
+			"outer.html",
 			HTMLNode,
 			outerHTML,
 			nil,
@@ -214,16 +214,21 @@ func TestBuild(t *testing.T) {
 	}
 
 	expectedNodes := []Node{
-		{tmpDir.contentDir, DirectoryNode, nil, []Node{
-			{
-				changeFileExtension(tmpDir.innerFile, ".md", ".html"),
-				HTMLNode,
-				innerHTML,
-				nil,
-			},
-		}},
 		{
-			changeFileExtension(tmpDir.outerFile, ".md", ".html"),
+			"content",
+			DirectoryNode,
+			nil,
+			[]Node{
+				{
+					"content/inner.html",
+					HTMLNode,
+					innerHTML,
+					nil,
+				},
+			},
+		},
+		{
+			"outer.html",
 			HTMLNode,
 			outerHTML,
 			nil,
@@ -284,6 +289,58 @@ The brown fox jumped over the lazy dog.
 					expected.String(),
 					string(html),
 				)
+			}
+		})
+	}
+}
+
+func TestStripEntryPrefix(t *testing.T) {
+	tests := []struct {
+		prefix   string
+		name     string
+		children []string
+
+		expectedName     string
+		expectedChildren []string
+	}{
+		{
+			"website",
+			"website/content",
+			[]string{"website/content/index.html"},
+			"content",
+			[]string{"content/index.html"},
+		},
+	}
+
+	for i, tt := range tests {
+		t.Run(fmt.Sprintf("test_%d", i), func(t *testing.T) {
+			de := &directoryEntry{
+				name:     tt.name,
+				children: make([]Entry, len(tt.children)),
+			}
+			for i, childName := range tt.children {
+				de.children[i] = &directoryEntry{name: childName}
+			}
+
+			stripEntryPrefix(de, tt.prefix)
+
+			if de.name != tt.expectedName {
+				t.Errorf(
+					"directoryEntry's name not properly stripped. expected=%q. got=%q",
+					tt.expectedName,
+					de.name,
+				)
+			}
+
+			for j, child := range de.children {
+				if child.Name() != tt.expectedChildren[i] {
+					t.Errorf(
+						"child %d's name not properly stripped. expected=%q. got=%q",
+						j,
+						tt.expectedChildren[i],
+						child.Name(),
+					)
+				}
 			}
 		})
 	}

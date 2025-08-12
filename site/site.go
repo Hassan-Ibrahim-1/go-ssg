@@ -142,12 +142,30 @@ func loadDirectoryEntries(dir string) ([]Entry, error) {
 
 	entries := make([]Entry, len(dirContents))
 	for i, entry := range dirContents {
-		entries[i], err = newDirectoryEntry(entry, dir)
+		de, err := newDirectoryEntry(entry, dir)
 		if err != nil {
 			return nil, err
 		}
+
+		stripEntryPrefix(de, dir)
+
+		entries[i] = de
+
 	}
 	return entries, nil
+}
+
+func stripEntryPrefix(de *directoryEntry, prefix string) {
+	de.name = strings.TrimPrefix(de.name, prefix)
+
+	if de.name[0] == '/' {
+		de.name = de.name[1:]
+	}
+
+	for _, child := range de.children {
+		// yuck
+		stripEntryPrefix(child.(*directoryEntry), prefix)
+	}
 }
 
 func Build(dir string) ([]Node, error) {
