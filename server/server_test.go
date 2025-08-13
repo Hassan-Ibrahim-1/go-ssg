@@ -25,6 +25,7 @@ func TestGenerateIndexHTML(t *testing.T) {
 			for i := range tt.blogs {
 				nodes[i] = site.Node{Name: tt.blogs[i]}
 			}
+
 			rpi := rootPageInfo{tt.title, nodes}
 			html, err := generateIndexHTML(rpi)
 			if err != nil {
@@ -88,7 +89,7 @@ func TestNodeHandler(t *testing.T) {
 		{defaultTestSite(), "/content", "content index"},
 		{defaultTestSite(), "/content/index.html", "content index"},
 		{defaultTestSite(), "/content/inner.html", "content inner"},
-		{defaultTestSite(), "/content/foo.html", "index"},
+		{defaultTestSite(), "/content/foo.html", "content index"},
 		{defaultTestSite(), "/inner.html", "index"},
 		{defaultTestSite(), "/content.html", "index"},
 		{defaultTestSite(), "/content/", "content index"},
@@ -97,24 +98,27 @@ func TestNodeHandler(t *testing.T) {
 	}
 
 	for i, tt := range tests {
-		t.Run(fmt.Sprintf("test_%d", i), func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, tt.requestPath, nil)
-			rc := httptest.NewRecorder()
+		t.Run(
+			fmt.Sprintf("test_%d_req_path_%s", i, tt.requestPath),
+			func(t *testing.T) {
+				req := httptest.NewRequest(http.MethodGet, tt.requestPath, nil)
+				rc := httptest.NewRecorder()
 
-			n := NodeHandler{tt.nodes, []byte("index")}
-			n.ServeHTTP(rc, req)
+				n := newNodeHandler(tt.nodes)
+				n.ServeHTTP(rc, req)
 
-			if rc.Code != http.StatusOK {
-				t.Errorf("http response not OK. got %d", rc.Code)
-			}
+				if rc.Code != http.StatusOK {
+					t.Errorf("http response not OK. got %d", rc.Code)
+				}
 
-			if body := rc.Body.String(); body != tt.expected {
-				t.Errorf(
-					"unexpected body. expected=%s\n got=%s",
-					tt.expected,
-					body,
-				)
-			}
-		})
+				if body := rc.Body.String(); body != tt.expected {
+					t.Errorf(
+						"unexpected body. expected=%s\n got=%s",
+						tt.expected,
+						body,
+					)
+				}
+			},
+		)
 	}
 }

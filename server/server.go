@@ -13,16 +13,18 @@ import (
 )
 
 func New(addr string, nodes []site.Node) (*http.Server, error) {
-	indexHTML, err := generateIndexHTML(
-		rootPageInfo{"A blog", filterNodes(nodes, site.HTMLNode)},
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate index.html: %w", err)
-	}
+	// indexHTML, err := generateIndexHTML(
+	// 	rootPageInfo{"A blog", filterNodes(nodes, site.HTMLNode)},
+	// )
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to generate index.html: %w", err)
+	// }
+
+	handler := newNodeHandler(nodes)
 
 	return &http.Server{
 		Addr:              addr,
-		Handler:           NodeHandler{nodes, indexHTML},
+		Handler:           handler,
 		ReadTimeout:       5 * time.Second,
 		WriteTimeout:      10 * time.Second,
 		IdleTimeout:       120 * time.Second,
@@ -30,68 +32,87 @@ func New(addr string, nodes []site.Node) (*http.Server, error) {
 	}, nil
 }
 
-type NodeHandler struct {
-	nodes []site.Node
-	// FIXME:
-	indexHTML []byte
+func newNodeHandler(nodes []site.Node) *http.ServeMux {
+	mux := http.NewServeMux()
+	newNodeMux(nodes, mux)
+	for _, node := range nodes {
+		if isIndex(node.Name) {
+			mux.HandleFunc(
+				"/",
+				func(w http.ResponseWriter, r *http.Request) {
+					fmt.Println("/ is handling the request for", r.URL.Path)
+					w.Header().Set("Content-Type", "text/html")
+					w.Write(node.Content)
+				},
+			)
+			break
+		}
+	}
+
+	return mux
 }
 
-func (n NodeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	node := n.resolveURLPath(r.URL.Path)
-	if node == nil {
-		n.homePage(w, r)
+func newNodeMux(nodes []site.Node, mux *http.ServeMux) {
+	if len(nodes) == 0 || mux == nil {
 		return
 	}
 
-	if node.Type == site.DirectoryNode {
-		foundNodeIndex := false
-		for _, child := range node.Children {
-			if strings.HasSuffix(child.Name, "/index.html") {
-				node = &child
-				foundNodeIndex = true
-				break
+	for _, node := range nodes {
+		mux.HandleFunc(
+			"/"+node.Name,
+			func(w http.ResponseWriter, r *http.Request) {
+				// fmt.Println("/" + node.Name + " is handling the request")
+				switch node.Type {
+				case site.HTMLNode:
+					fmt.Println(
+						"/"+node.Name+" is handling the request for",
+						r.URL.Path,
+					)
+					w.Header().Set("Content-Type", "text/html")
+					w.Write(node.Content)
+
+				case site.DirectoryNode:
+					if index := indexNode(node); index != nil {
+						w.Header().Set("Content-Type", "text/html")
+						w.Write(index.Content)
+						return
+					}
+					// does this make sense?
+					http.NotFound(w, r)
+
+				default:
+					http.NotFound(w, r)
+				}
+			},
+		)
+
+		if len(node.Children) != 0 {
+			newNodeMux(node.Children, mux)
+
+			if index := indexNode(node); index != nil {
+				mux.HandleFunc(
+					"/"+node.Name+"/",
+					func(w http.ResponseWriter, r *http.Request) {
+						w.Header().Set("Content-Type", "text/html")
+						w.Write(index.Content)
+					},
+				)
 			}
 		}
-		if !foundNodeIndex {
-			n.homePage(w, r)
-			return
-		}
 	}
-
-	// ???
-	if node.Content == nil {
-		http.NotFound(w, r)
-		return
-	}
-
-	w.Header().Set("Content-Type", "text/html")
-	w.Write(node.Content)
 }
 
-func (n NodeHandler) homePage(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "text/html")
-	w.Write(n.indexHTML)
-}
-
-func (n NodeHandler) resolveURLPath(path string) *site.Node {
-	trimmedPath := trimSlash(path)
-	return matchNode(trimmedPath, n.nodes)
-}
-
-func matchNode(name string, nodes []site.Node) *site.Node {
-	for _, node := range nodes {
-		if name == node.Name {
-			return &node
-		}
-		if n := matchNode(name, node.Children); n != nil {
-			return n
+func indexNode(node site.Node) *site.Node {
+	for _, child := range node.Children {
+		if isIndex(child.Name) {
+			return &child
 		}
 	}
 	return nil
 }
 
-func trimSlash(s string) string {
-	return strings.TrimSuffix(strings.TrimPrefix(s, "/"), "/")
+func isIndex(nodeName string) bool {
+	return strings.HasSuffix(nodeName, "index.html")
 }
 
 //go:embed templates/index.html
@@ -110,15 +131,4 @@ func generateIndexHTML(rpi rootPageInfo) ([]byte, error) {
 		return nil, err
 	}
 	return buf.Bytes(), nil
-}
-
-func filterNodes(nodes []site.Node, typ site.NodeType) []site.Node {
-	filtered := make([]site.Node, 0, len(nodes))
-	for _, node := range nodes {
-		if node.Type == typ {
-			filtered = append(filtered, node)
-		}
-		filtered = append(filtered, filterNodes(node.Children, typ)...)
-	}
-	return filtered
 }
