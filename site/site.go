@@ -207,9 +207,20 @@ func (sb *siteBuilder) build(entries []Entry) (Site, error) {
 	}
 
 	indexFound := false
-	for _, node := range nodes {
+	for i, node := range nodes {
 		if strings.HasSuffix(node.Name, "index.html") {
 			indexFound = true
+
+			// this is really stupid, buildNode formats index.html
+			// using generateBlogHTML and we don't want that for index.html files
+			// so we reset it here. should think of a better way for doing this
+			// maybe only files in content/ get the blog.html template
+			doc, err := markdown.ToHTML(entries[i].Content())
+			if err != nil {
+				return Site{}, fmt.Errorf("markdown.ToHTML failed: %w", err)
+			}
+			nodes[i].Content = doc.Content
+
 			break
 		}
 	}
@@ -259,7 +270,7 @@ func (sb *siteBuilder) buildNode(entry Entry) (*Node, error) {
 		if len(children) == 0 {
 			return nil, nil
 		}
-		childrenNodes, err := sb.buildNodes(children)
+		childNodes, err := sb.buildNodes(children)
 		if err != nil {
 			return nil, err
 		}
@@ -267,7 +278,7 @@ func (sb *siteBuilder) buildNode(entry Entry) (*Node, error) {
 			Name:     entry.Name(),
 			Type:     DirectoryNode,
 			Content:  nil,
-			Children: childrenNodes,
+			Children: childNodes,
 		}, nil
 
 	case FileEntry:
@@ -360,17 +371,16 @@ type rootPageInfo struct {
 }
 
 func generateIndexNode(rpi rootPageInfo) (Node, error) {
-	var buf bytes.Buffer
-	err := indexTmpl.Execute(&buf, rpi)
+	var html bytes.Buffer
+	err := indexTmpl.Execute(&html, rpi)
 	if err != nil {
 		return Node{}, err
 	}
 
-	html := buf.Bytes()
 	return Node{
 		Name:     "index.html",
 		Type:     HTMLNode,
-		Content:  html,
+		Content:  html.Bytes(),
 		Children: nil,
 	}, nil
 }

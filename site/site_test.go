@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/Hassan-Ibrahim-1/go-ssg/markdown"
 )
 
 type testEntry struct {
@@ -145,6 +147,53 @@ func TestStripEntryPrefix(t *testing.T) {
 	}
 }
 
+func TestLoadDirectoryEntries(t *testing.T) {
+	outerContent := "outer.md"
+	innerContent := "inner.md"
+
+	testDir, err := setupTestDirectory(t, innerContent, outerContent)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expectedEntries := []Entry{
+		&testEntry{
+			name: "content",
+			typ:  DirectoryEntry,
+			children: []Entry{
+				&testEntry{
+					name:    "content/inner.md",
+					typ:     FileEntry,
+					content: innerContent,
+				},
+			},
+		},
+		&testEntry{
+			name:    "index.html",
+			typ:     FileEntry,
+			content: "index",
+		},
+		&testEntry{
+			name:    "outer.md",
+			typ:     FileEntry,
+			content: outerContent,
+		},
+		&testEntry{
+			name:    "ssg.toml",
+			typ:     FileEntry,
+			content: defaultSsgToml(),
+		},
+		defaultThemeDirEntry(),
+	}
+
+	entries, err := loadDirectoryEntries(testDir.name)
+	if err != nil {
+		t.Fatal("loadDirectoryEntries failed:", err)
+	}
+
+	_ = testEntriesEqual(t, entries, expectedEntries)
+}
+
 type testDirectory struct {
 	name       string
 	contentDir string
@@ -152,11 +201,358 @@ type testDirectory struct {
 	outerFile  string
 }
 
+func TestNewSiteBuilder(t *testing.T) {
+	tests := []struct {
+		entries        []Entry
+		expectedConfig SiteConfig
+		expectedErr    error
+	}{
+		{
+			[]Entry{
+				defaultSsgTomlEntry(), defaultThemeDirEntry(),
+			}, SiteConfig{"test author", "test blog", "/themes/dark.css"}, nil,
+		},
+		{
+			[]Entry{
+				&testEntry{
+					name:    "index.html",
+					content: "index",
+					typ:     FileEntry,
+				},
+			}, SiteConfig{}, fmt.Errorf("no ssg.toml file found in project root"),
+		},
+		{
+			[]Entry{
+				defaultSsgTomlEntry(),
+			}, SiteConfig{}, fmt.Errorf("failed to parse config: no themes/ directory in project root"),
+		},
+	}
+
+	for i, tt := range tests {
+		t.Run(fmt.Sprintf("test_%d", i), func(t *testing.T) {
+			sb, err := newSiteBuilder(tt.entries)
+			if !errEqual(err, tt.expectedErr) {
+				t.Fatalf("wrong err. expected=%q. got=%q", tt.expectedErr, err)
+			}
+
+			if sb.config != tt.expectedConfig {
+				t.Errorf(
+					"wrong config. expected=%v. got=%v",
+					tt.expectedConfig,
+					sb.config,
+				)
+			}
+		})
+	}
+}
+
+func TestParseConfig(t *testing.T) {
+	tests := []struct {
+		entries        []Entry
+		ssgToml        string
+		expectedConfig SiteConfig
+		expectedErr    error
+	}{
+		{
+			[]Entry{defaultThemeDirEntry()},
+			defaultSsgToml(),
+			SiteConfig{"test author", "test blog", "/themes/dark.css"},
+			nil,
+		},
+		{
+			[]Entry{defaultThemeDirEntry()},
+			`
+author = "test author"
+theme = "dark"
+`,
+			SiteConfig{},
+			fmt.Errorf("no title provided in ssg.toml"),
+		},
+		{
+			[]Entry{defaultThemeDirEntry()},
+			`
+title = "test blog"
+theme = "dark"
+`,
+			SiteConfig{},
+			fmt.Errorf("no author provided in ssg.toml"),
+		},
+		{
+			[]Entry{defaultThemeDirEntry()},
+			`
+title = "test blog"
+author = "test author"
+`,
+			SiteConfig{},
+			fmt.Errorf("no theme provided in ssg.toml"),
+		},
+		{
+			[]Entry{defaultThemeDirEntry()},
+			`
+title = "test blog"
+author = "test author"
+theme = "dne"
+`,
+			SiteConfig{},
+			fmt.Errorf("theme dne not found in themes/"),
+		},
+		{
+			[]Entry{},
+			`
+title = "test blog"
+author = "test author"
+theme = "dark"
+`,
+			SiteConfig{},
+			fmt.Errorf("no themes/ directory in project root"),
+		},
+	}
+
+	for i, tt := range tests {
+		t.Run(fmt.Sprintf("test_%d", i), func(t *testing.T) {
+			config, err := parseConfig(tt.entries, []byte(tt.ssgToml))
+			if !errEqual(err, tt.expectedErr) {
+				t.Fatalf("wrong err. expected=%q. got=%q", tt.expectedErr, err)
+			}
+
+			if config != tt.expectedConfig {
+				t.Errorf(
+					"wrong config. expected=%v. got=%v",
+					tt.expectedConfig,
+					config,
+				)
+			}
+		})
+	}
+}
+
+func TestBuildFromEntries(t *testing.T) {
+	indexMarkdown := "+++\ntitle = Index\n+++\nindex"
+	doc, err := markdown.ToHTML([]byte(indexMarkdown))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	indexHTML := doc.Content
+
+	innerMarkdown := `
++++
+title = "some blog"
++++
+hello
+`
+	innerContentDoc, err := markdown.ToHTML([]byte(innerMarkdown))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	innerHTML, err := generateBlogHTML(innerContentDoc, "/themes/dark.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		entries  []Entry
+		expected []Node
+	}{
+		{
+			[]Entry{
+				defaultSsgTomlEntry(),
+				defaultThemeDirEntry(),
+				&testEntry{
+					name:    "index.md",
+					typ:     FileEntry,
+					content: indexMarkdown,
+				},
+			},
+			[]Node{
+				defaultSsgTomlNode(),
+				defaultThemeDirNode(),
+				{
+					Name:    "index.html",
+					Type:    HTMLNode,
+					Content: indexHTML,
+				},
+			},
+		},
+		{
+			[]Entry{
+				defaultSsgTomlEntry(),
+				defaultThemeDirEntry(),
+				&testEntry{
+					name:    "index.md",
+					typ:     FileEntry,
+					content: indexMarkdown,
+				},
+				&testEntry{
+					name:    "something.txt",
+					typ:     FileEntry,
+					content: "blah blah",
+				},
+			},
+			[]Node{
+				defaultSsgTomlNode(),
+				defaultThemeDirNode(),
+				{
+					Name:    "index.html",
+					Type:    HTMLNode,
+					Content: indexHTML,
+				},
+				{
+					Name:    "something.txt",
+					Type:    FileNode,
+					Content: []byte("blah blah"),
+				},
+			},
+		},
+		{
+			[]Entry{
+				defaultSsgTomlEntry(),
+				defaultThemeDirEntry(),
+				&testEntry{
+					name:    "index.md",
+					typ:     FileEntry,
+					content: indexMarkdown,
+				},
+				&testEntry{
+					name: "content",
+					typ:  DirectoryEntry,
+					children: []Entry{
+						&testEntry{
+							name:    "content/inner.md",
+							typ:     FileEntry,
+							content: innerMarkdown,
+						},
+					},
+				},
+			},
+			[]Node{
+				defaultSsgTomlNode(),
+				defaultThemeDirNode(),
+				{
+					Name:    "index.html",
+					Type:    HTMLNode,
+					Content: indexHTML,
+				},
+				{
+					Name: "content",
+					Type: DirectoryNode,
+					Children: []Node{
+						{
+							Name:    "content/inner.html",
+							Type:    HTMLNode,
+							Content: innerHTML,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for i, tt := range tests {
+		t.Run(fmt.Sprintf("test_%d", i), func(t *testing.T) {
+			site, err := BuildFromEntries(tt.entries)
+			if err != nil {
+				t.Fatal("BuildFromEntries failed:", err)
+			}
+			testNodesEqual(t, site.Nodes, tt.expected)
+		})
+	}
+}
+
+func TestGenerateBlogHTML(t *testing.T) {
+	tests := []struct {
+		markdown string
+		theme    string
+		expected string
+	}{
+		{`
++++
+title = some blog
++++
+hello
+`,
+			"/themes/dark.css", `<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link rel="stylesheet" href="/themes/dark.css" />
+        <title>some blog</title>
+    </head>
+    <body>
+        <div id="title">
+            <h1>some blog</h1>
+        </div>
+        <div id="metadata">
+            <p id="author-name"></p>
+            <p id="data-published"></p>
+        </div>
+        <article><p>hello</p>
+        </article>
+    </body>
+</html>
+`,
+		},
+	}
+
+	for i, tt := range tests {
+		t.Run(fmt.Sprintf("test_%d", i), func(t *testing.T) {
+			doc, err := markdown.ToHTML([]byte(tt.markdown))
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			html, err := generateBlogHTML(doc, tt.theme)
+			if err != nil {
+				t.Fatalf("generateBlogHTML failed: %v", err)
+			}
+
+			htmlLines := bytes.Split(html, []byte{'\n'})
+			expectedLines := bytes.Split([]byte(tt.expected), []byte{'\n'})
+
+			if len(htmlLines) != len(expectedLines) {
+				t.Errorf(
+					"invalid html expected has %d lines while result has %d\nexpected=\n%s\ngot=\n%s",
+					len(expectedLines),
+					len(htmlLines),
+					tt.expected,
+					string(html),
+				)
+			}
+			for i, expected := range expectedLines {
+				line := bytes.TrimSpace(htmlLines[i])
+				expected = bytes.TrimSpace(expected)
+
+				if !bytes.Equal(line, expected) {
+					t.Errorf(
+						"html not equal at line %d\nexpected=\n%s\ngot=\n%s\n",
+						i+1,
+						expected,
+						line,
+					)
+				}
+			}
+		})
+	}
+}
+
+func errEqual(err1, err2 error) bool {
+	if err1 == nil && err2 == nil {
+		return true
+	}
+	if err1 == nil || err2 == nil {
+		return false
+	}
+	return err1.Error() == err2.Error()
+}
+
 // creates the following structure
 // tmp/content/inner.md
 // tmp/outer.md
 // themes/dark.css
 // ssg.toml
+// index.html `content: "index"`
 func setupTestDirectory(
 	t *testing.T,
 	innerContent string,
@@ -190,6 +586,15 @@ func setupTestDirectory(
 	err = os.WriteFile(
 		filepath.Join(tmpDir, "ssg.toml"),
 		[]byte(defaultSsgToml()),
+		0644,
+	)
+	if err != nil {
+		return testDirectory{}, err
+	}
+
+	err = os.WriteFile(
+		filepath.Join(tmpDir, "index.html"),
+		[]byte("index"),
 		0644,
 	)
 	if err != nil {
@@ -320,7 +725,8 @@ func testNodeEqual(t *testing.T, node, expected Node) {
 
 	if !bytes.Equal(node.Content, expected.Content) {
 		t.Errorf(
-			"node contents not equal. expected=%s.\n got=%s",
+			"node contents not equal for %s. expected=%s.\n got=%s",
+			expected.Name,
 			string(expected.Content),
 			string(node.Content),
 		)
