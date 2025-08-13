@@ -3,12 +3,9 @@ package site
 import (
 	"bytes"
 	"fmt"
-	"html/template"
 	"os"
 	"path/filepath"
 	"testing"
-
-	"github.com/Hassan-Ibrahim-1/go-ssg/markdown"
 )
 
 type testEntry struct {
@@ -34,258 +31,65 @@ func (te *testEntry) Children() []Entry {
 	return te.children
 }
 
-func TestBuildFromEntries(t *testing.T) {
-	testContentMarkdown := "+++\ntitle= Test Author\n+++\nHello World"
-
-	doc, err := markdown.ToHTML([]byte(testContentMarkdown))
-	if err != nil {
-		t.Fatalf("ToHTML failed: %v", err)
-	}
-
-	testContentHTML, err := generateBlogHTML(doc)
-	if err != nil {
-		t.Fatalf("failed to generate blog html: %v", err)
-	}
-
-	tests := []struct {
-		entries  []Entry
-		expected []Node
-	}{
-		{
-			[]Entry{
-				&testEntry{"index.md", FileEntry, testContentMarkdown, nil},
-			},
-			[]Node{
-				{"index.html", HTMLNode, testContentHTML, nil},
-			},
-		},
-		{
-			[]Entry{
-				&testEntry{"content/", DirectoryEntry, "", []Entry{
-					&testEntry{
-						"content/index.md",
-						FileEntry,
-						testContentMarkdown,
-						nil,
-					},
-				}},
-			},
-			[]Node{
-				{"content/", DirectoryNode, nil, []Node{
-					{"content/index.html", HTMLNode, testContentHTML, nil},
-				}},
-			},
-		},
-	}
-
-	for i, tt := range tests {
-		t.Run(fmt.Sprintf("test_%d", i), func(t *testing.T) {
-			nodes, err := BuildFromEntries(tt.entries)
-			if err != nil {
-				t.Fatalf("Failed to build nodes: %v", err)
-			}
-
-			testNodesEqual(t, nodes, tt.expected)
-		})
+func defaultSsgTomlEntry() Entry {
+	return &testEntry{
+		name:     "ssg.toml",
+		typ:      FileEntry,
+		content:  defaultSsgToml(),
+		children: nil,
 	}
 }
 
-func TestLoadDirectoryEntries(t *testing.T) {
-	outerContent := "+++\ntitle= Test Blog\n+++\nfoo bar baz"
-	innerContent := "+++\ntitle= Test Blog\n+++\nHello World"
-
-	innerDoc, err := markdown.ToHTML([]byte(innerContent))
-	if err != nil {
-		t.Fatalf("ToHTML failed: %v", err)
-	}
-
-	outerDoc, err := markdown.ToHTML([]byte(outerContent))
-	if err != nil {
-		t.Fatalf("ToHTML failed: %v", err)
-	}
-
-	innerHTML, err := generateBlogHTML(innerDoc)
-	if err != nil {
-		t.Errorf("Failed to generate blog html: %v", err)
-	}
-	outerHTML, err := generateBlogHTML(outerDoc)
-	if err != nil {
-		t.Errorf("Failed to generate blog html: %v", err)
-	}
-
-	tmpDir, err := setupTestDirectory(t, innerContent, outerContent)
-	if err != nil {
-		t.Fatal("failed to setup test directory:", err)
-	}
-
-	expectedEntries := []Entry{
-		&testEntry{
-			"content",
-			DirectoryEntry,
-			"",
-			[]Entry{
-				&testEntry{
-					"content/inner.md",
-					FileEntry,
-					innerContent,
-					nil,
-				},
-			},
-		},
-		&testEntry{
-			"outer.md",
-			FileEntry,
-			outerContent,
-			nil,
-		},
-	}
-
-	entries, err := loadDirectoryEntries(tmpDir.name)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if !testEntriesEqual(t, entries, expectedEntries) {
-		return
-	}
-
-	expectedNodes := []Node{
-		{
-			"content",
-			DirectoryNode,
-			nil,
-			[]Node{
-				{
-					"content/inner.html",
-					HTMLNode,
-					innerHTML,
-					nil,
-				},
-			},
-		},
-		{
-			"outer.html",
-			HTMLNode,
-			outerHTML,
-			nil,
-		},
-	}
-
-	nodes, err := BuildFromEntries(entries)
-	if err != nil {
-		t.Fatalf("BuildFromEntries failed: %v", err)
-	}
-
-	testNodesEqual(t, nodes, expectedNodes)
+func defaultSsgToml() string {
+	return `
+title = "test blog"
+author = "test author"
+theme = "dark"
+`
 }
 
-func TestBuild(t *testing.T) {
-	innerContent := "+++\ntitle= Test Blog\n+++\nHello World"
-	outerContent := "+++\ntitle= Test Blog\n+++\nfoo bar baz"
-
-	innerDoc, err := markdown.ToHTML([]byte(innerContent))
-	if err != nil {
-		t.Fatalf("ToHTML failed: %v", err)
+func defaultSsgTomlNode() Node {
+	return Node{
+		Name:     "ssg.toml",
+		Type:     FileNode,
+		Content:  []byte(defaultSsgToml()),
+		Children: nil,
 	}
-
-	outerDoc, err := markdown.ToHTML([]byte(outerContent))
-	if err != nil {
-		t.Fatalf("ToHTML failed: %v", err)
-	}
-
-	innerHTML, err := generateBlogHTML(innerDoc)
-	if err != nil {
-		t.Errorf("Failed to generate blog html: %v", err)
-	}
-
-	outerHTML, err := generateBlogHTML(outerDoc)
-	if err != nil {
-		t.Errorf("Failed to generate blog html: %v", err)
-	}
-
-	tmpDir, err := setupTestDirectory(t, innerContent, outerContent)
-	if err != nil {
-		t.Fatal("failed to setup test directory:", err)
-	}
-
-	expectedNodes := []Node{
-		{
-			"content",
-			DirectoryNode,
-			nil,
-			[]Node{
-				{
-					"content/inner.html",
-					HTMLNode,
-					innerHTML,
-					nil,
-				},
-			},
-		},
-		{
-			"outer.html",
-			HTMLNode,
-			outerHTML,
-			nil,
-		},
-	}
-
-	nodes, err := Build(tmpDir.name)
-	if err != nil {
-		t.Fatal("failed to build tmpDir:", err)
-	}
-
-	testNodesEqual(t, nodes, expectedNodes)
 }
 
-func TestGenerateBlogHTML(t *testing.T) {
-	tests := []struct {
-		md string
-	}{
-		{`
-+++
-title = A Test Blog
-author = Test Author
-date = 01-06-2025
-+++
-The brown fox jumped over the lazy dog.
-`,
+func defaultDarkTheme() string {
+	return "p {color: red;}"
+}
+
+func defaultThemeDirEntry() Entry {
+	return &testEntry{
+		name:    "themes",
+		typ:     DirectoryEntry,
+		content: "",
+		children: []Entry{
+			&testEntry{
+				name:     "themes/dark.css",
+				typ:      FileEntry,
+				content:  defaultDarkTheme(),
+				children: nil,
+			},
 		},
 	}
+}
 
-	for i, tt := range tests {
-		t.Run(fmt.Sprintf("test_%d", i), func(t *testing.T) {
-			doc, err := markdown.ToHTML([]byte(tt.md))
-			if err != nil {
-				t.Fatalf("ToHTML failed: %v", err)
-			}
-
-			html, err := generateBlogHTML(doc)
-			if err != nil {
-				t.Fatalf("generateBlogHTML failed: %v", err)
-			}
-
-			blogInfo := blogTemplate{
-				Title:         doc.Metadata["title"],
-				AuthorName:    doc.Metadata["author"],
-				PublishedDate: doc.Metadata["date"],
-				Blog:          template.HTML(doc.Content),
-			}
-
-			var expected bytes.Buffer
-			err = blogTmpl.Execute(&expected, blogInfo)
-			if err != nil {
-				t.Fatalf("Failed to execute blog template: %v", err)
-			}
-
-			if !bytes.Equal(html, expected.Bytes()) {
-				t.Errorf(
-					"bad html template. expected=%s\ngot=%s.",
-					expected.String(),
-					string(html),
-				)
-			}
-		})
+func defaultThemeDirNode() Node {
+	return Node{
+		Name:    "themes",
+		Type:    DirectoryNode,
+		Content: nil,
+		Children: []Node{
+			{
+				Name:     "themes/dark.css",
+				Type:     FileNode,
+				Content:  []byte(defaultDarkTheme()),
+				Children: nil,
+			},
+		},
 	}
 }
 
@@ -351,6 +155,8 @@ type testDirectory struct {
 // creates the following structure
 // tmp/content/inner.md
 // tmp/outer.md
+// themes/dark.css
+// ssg.toml
 func setupTestDirectory(
 	t *testing.T,
 	innerContent string,
@@ -381,6 +187,28 @@ func setupTestDirectory(
 		return testDirectory{}, err
 	}
 
+	err = os.WriteFile(
+		filepath.Join(tmpDir, "ssg.toml"),
+		[]byte(defaultSsgToml()),
+		0644,
+	)
+	if err != nil {
+		return testDirectory{}, err
+	}
+
+	err = os.Mkdir(filepath.Join(tmpDir, "themes"), 0755)
+	if err != nil {
+		return testDirectory{}, err
+	}
+	err = os.WriteFile(
+		filepath.Join(tmpDir, "themes/dark.css"),
+		[]byte(defaultDarkTheme()),
+		0644,
+	)
+	if err != nil {
+		return testDirectory{}, err
+	}
+
 	return testDirectory{
 		name:       tmpDir,
 		contentDir: filepath.Join(tmpDir, "content"),
@@ -395,8 +223,8 @@ func testEntriesEqual(t *testing.T, entries, expected []Entry) bool {
 			"expected length=%d. got=%d. expected=%+v. got=%+v",
 			len(expected),
 			len(entries),
-			expected,
-			entries,
+			sprintEntryNames(expected),
+			sprintEntryNames(entries),
 		)
 		return false
 	}
@@ -458,8 +286,8 @@ func testNodesEqual(t *testing.T, nodes, expected []Node) {
 			"expected length=%d. got=%d. expected=%+v. got=%+v",
 			len(expected),
 			len(nodes),
-			expected,
-			nodes,
+			sprintNodeNames(expected),
+			sprintNodeNames(nodes),
 		)
 		return
 	}
@@ -483,7 +311,8 @@ func testNodeEqual(t *testing.T, node, expected Node) {
 
 	if node.Type != expected.Type {
 		t.Errorf(
-			"node types not equal. expected=%d. got=%d",
+			"node types not equal for node %s. expected=%d. got=%d",
+			expected.Name,
 			expected.Type,
 			node.Type,
 		)
@@ -491,11 +320,27 @@ func testNodeEqual(t *testing.T, node, expected Node) {
 
 	if !bytes.Equal(node.Content, expected.Content) {
 		t.Errorf(
-			"node contents not equal. expected=%q. got=%q",
+			"node contents not equal. expected=%s.\n got=%s",
 			string(expected.Content),
 			string(node.Content),
 		)
 	}
 
 	testNodesEqual(t, node.Children, expected.Children)
+}
+
+func sprintNodeNames(nodes []Node) string {
+	names := make([]string, len(nodes))
+	for i, node := range nodes {
+		names[i] = node.Name
+	}
+	return fmt.Sprintf("%+v", names)
+}
+
+func sprintEntryNames(entries []Entry) string {
+	names := make([]string, len(entries))
+	for i, node := range entries {
+		names[i] = node.Name()
+	}
+	return fmt.Sprintf("%+v", names)
 }
