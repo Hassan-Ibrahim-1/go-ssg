@@ -63,6 +63,9 @@ usage:
     -- figure out how to derive a node's name
 
     - toml config file. (themes, website name, deployment info)
+        integrate this toml file into site/
+        it should parse this file and create some struct using it
+
     - get themes working - there should be a themes/ dir with css files
         that you can choose in the config file
 
