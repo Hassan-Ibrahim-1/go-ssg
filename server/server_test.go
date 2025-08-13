@@ -77,7 +77,26 @@ func defaultTestSite() []site.Node {
 				},
 			},
 		},
-	}
+		{
+			Name:    "static",
+			Type:    site.DirectoryNode,
+			Content: nil,
+			Children: []site.Node{
+				{
+					Name:    "static/images",
+					Type:    site.DirectoryNode,
+					Content: nil,
+					Children: []site.Node{
+						{
+							Name:     "static/images/image.png",
+							Type:     site.HTMLNode,
+							Content:  []byte("image"),
+							Children: nil,
+						},
+					},
+				},
+			},
+		}}
 }
 
 func TestNodeHandler(t *testing.T) {
@@ -95,6 +114,41 @@ func TestNodeHandler(t *testing.T) {
 		{defaultTestSite(), "/content/", "content index"},
 		{defaultTestSite(), "/", "index"},
 		{defaultTestSite(), "/index.html", "index"},
+		{defaultTestSite(), "/static/images/", "index"},
+		{defaultTestSite(), "/static/images/image.png", "image"},
+		{defaultTestSite(), "/static/images/sh.png", "index"},
+		{defaultTestSite(), "/staticsh.png", "index"},
+		{defaultTestSite(), "/static/sh.png", "index"},
+		{defaultTestSite(), "/dne", "index"},
+		{defaultTestSite(), "/dne/", "index"},
+		{defaultTestSite(), "/content/", "content index"},
+		{defaultTestSite(), "/content/res/dne", "content index"},
+		{defaultTestSite(), "/content/res/dne.html", "content index"},
+		{defaultTestSite(), "/dne.html", "index"},
+		{defaultTestSite(), "/contents/res/dne.html", "index"},
+		{
+			[]site.Node{
+				{
+					Name:     "index.html",
+					Type:     site.HTMLNode,
+					Content:  []byte("index"),
+					Children: nil,
+				},
+				{
+					Name:    "content",
+					Type:    site.DirectoryNode,
+					Content: nil,
+					Children: []site.Node{
+						{
+							Name:     "content/inner.html",
+							Type:     site.HTMLNode,
+							Content:  []byte("content inner"),
+							Children: nil,
+						},
+					},
+				},
+			}, "/content/foo.html", "index",
+		},
 	}
 
 	for i, tt := range tests {
