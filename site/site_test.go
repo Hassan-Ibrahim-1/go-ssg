@@ -179,11 +179,6 @@ func TestLoadDirectoryEntries(t *testing.T) {
 	testNodesEqual(t, nodes, expectedNodes)
 }
 
-func changeFileExtension(file, from, to string) string {
-	extensionIndex := len(file) - len(from)
-	return file[:extensionIndex] + to
-}
-
 func TestBuild(t *testing.T) {
 	innerContent := "+++\ntitle= Test Blog\n+++\nHello World"
 	outerContent := "+++\ntitle= Test Blog\n+++\nfoo bar baz"

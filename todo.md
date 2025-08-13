@@ -59,8 +59,8 @@ usage:
 
     -- create html templates to integrate meta data into
     -- create an index.html file that contains a blog list
-    fix server/. write a proper handler for routing to nodes
-    figure out how to derive a node's name
+    -- fix server/. write a proper handler for routing to nodes
+    -- figure out how to derive a node's name
 
     - toml config file. (themes, website name, deployment info)
     - get themes working - there should be a themes/ dir with css files
@@ -82,26 +82,7 @@ usage:
 
     if a directory is built using . or ./ then figure out how to properly strip paths
     test server/
-    rewrite matchNodeName. /content/index.md gets resolved to /index.html
-
-
-{
-    content/index.md
-    content/blog.md
-    index.md
-}
-
-{
-    site/content/index.md
-    site/content/blog.md
-    site/index.md
-}
-
-write a function that strips out the directory from node names
-this should be done in site/
-
-{
-    site/foo/content/index.md
-    site/foo/content/blog.md
-    site/foo/index.md
-}
+    
+    give the user access to site data using special commands like @title() / @author()
+        or maybe go's templates can still be used?
+    be able to place html files and markdown files. html files still contain the required metadata using +++
