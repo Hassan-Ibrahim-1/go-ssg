@@ -15,15 +15,13 @@ func main() {
 		return
 	}
 
-	nodes, err := site.Build(os.Args[1])
+	st, err := site.Build(os.Args[1])
 	if err != nil {
 		log.Fatalln("Failed to build site:", err)
 	}
 
-	fmt.Println(nodes)
-
 	addr := ":4200"
-	s, err := server.New(addr, nodes)
+	s, err := server.New(addr, st)
 	if err != nil {
 		log.Fatalln("Failed to create server", err)
 	}

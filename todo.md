@@ -65,9 +65,11 @@ usage:
     - toml config file. (themes, website name, deployment info)
         integrate this toml file into site/
         it should parse this file and create some struct using it
+        the struct can then be used to alter the generated html. so stuff like themes can be applied on to it
 
-    - get themes working - there should be a themes/ dir with css files
-        that you can choose in the config file
+    - get themes working - there should be a themes/ dir with css files that you can choose in the config file
+    
+    fix site tests
 
     -- read metadata from blogs
         - author

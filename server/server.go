@@ -1,18 +1,17 @@
 package server
 
 import (
-	"bytes"
-	_ "embed"
 	"fmt"
+	"mime"
 	"net/http"
+	"path/filepath"
 	"strings"
-	"text/template"
 	"time"
 
 	"github.com/Hassan-Ibrahim-1/go-ssg/site"
 )
 
-func New(addr string, nodes []site.Node) (*http.Server, error) {
+func New(addr string, st site.Site) (*http.Server, error) {
 	// indexHTML, err := generateIndexHTML(
 	// 	rootPageInfo{"A blog", filterNodes(nodes, site.HTMLNode)},
 	// )
@@ -20,7 +19,7 @@ func New(addr string, nodes []site.Node) (*http.Server, error) {
 	// 	return nil, fmt.Errorf("failed to generate index.html: %w", err)
 	// }
 
-	handler := newNodeHandler(nodes)
+	handler := newNodeHandler(st.Nodes)
 
 	return &http.Server{
 		Addr:              addr,
@@ -34,7 +33,7 @@ func New(addr string, nodes []site.Node) (*http.Server, error) {
 
 func newNodeHandler(nodes []site.Node) *http.ServeMux {
 	mux := http.NewServeMux()
-	newNodeMux(nodes, mux)
+	addNodesToMux(nodes, mux)
 	for _, node := range nodes {
 		if isIndex(node.Name) {
 			mux.HandleFunc(
@@ -52,42 +51,16 @@ func newNodeHandler(nodes []site.Node) *http.ServeMux {
 	return mux
 }
 
-func newNodeMux(nodes []site.Node, mux *http.ServeMux) {
+func addNodesToMux(nodes []site.Node, mux *http.ServeMux) {
 	if len(nodes) == 0 || mux == nil {
 		return
 	}
 
 	for _, node := range nodes {
-		mux.HandleFunc(
-			"/"+node.Name,
-			func(w http.ResponseWriter, r *http.Request) {
-				// fmt.Println("/" + node.Name + " is handling the request")
-				switch node.Type {
-				case site.HTMLNode:
-					fmt.Println(
-						"/"+node.Name+" is handling the request for",
-						r.URL.Path,
-					)
-					w.Header().Set("Content-Type", "text/html")
-					w.Write(node.Content)
-
-				case site.DirectoryNode:
-					if index := indexNode(node); index != nil {
-						w.Header().Set("Content-Type", "text/html")
-						w.Write(index.Content)
-						return
-					}
-					// does this make sense?
-					http.NotFound(w, r)
-
-				default:
-					http.NotFound(w, r)
-				}
-			},
-		)
+		mux.Handle("/"+node.Name, nodeHandler(node))
 
 		if len(node.Children) != 0 {
-			newNodeMux(node.Children, mux)
+			addNodesToMux(node.Children, mux)
 
 			if index := indexNode(node); index != nil {
 				mux.HandleFunc(
@@ -102,6 +75,34 @@ func newNodeMux(nodes []site.Node, mux *http.ServeMux) {
 	}
 }
 
+func nodeHandler(node site.Node) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// fmt.Println("/" + node.Name + " is handling the request")
+		switch node.Type {
+		case site.HTMLNode:
+			w.Header().Set("Content-Type", "text/html")
+			w.Write(node.Content)
+
+		case site.FileNode:
+			ext := filepath.Ext(node.Name)
+			w.Header().Set("Content-Type", mime.TypeByExtension(ext))
+			w.Write(node.Content)
+
+		case site.DirectoryNode:
+			if index := indexNode(node); index != nil {
+				w.Header().Set("Content-Type", "text/html")
+				w.Write(index.Content)
+				return
+			}
+			// does this make sense?
+			http.NotFound(w, r)
+
+		default:
+			http.NotFound(w, r)
+		}
+	})
+}
+
 func indexNode(node site.Node) *site.Node {
 	for _, child := range node.Children {
 		if isIndex(child.Name) {
@@ -113,22 +114,4 @@ func indexNode(node site.Node) *site.Node {
 
 func isIndex(nodeName string) bool {
 	return strings.HasSuffix(nodeName, "index.html")
-}
-
-//go:embed templates/index.html
-var indexRes string
-var indexTmpl = template.Must(template.New("index").Parse(indexRes))
-
-type rootPageInfo struct {
-	Title string
-	Blogs []site.Node
-}
-
-func generateIndexHTML(rpi rootPageInfo) ([]byte, error) {
-	var buf bytes.Buffer
-	err := indexTmpl.Execute(&buf, rpi)
-	if err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
 }

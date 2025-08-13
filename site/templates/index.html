@@ -4,12 +4,15 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>{{.Title}}</title>
+        <link rel="stylesheet" href="{{.Theme}}" />
     </head>
     <body>
         <h1 id="blog-title">{{.Title}}</h1>
 
-        {{range .Blogs}}
-        <li class="blog-item">{{.Name}}</li>
-        {{end}}
+        <div id="blog-list">
+            {{range .Blogs}}
+            <li class="blog-item">{{.Name}}</li>
+            {{end}}
+        </div>
     </body>
 </html>

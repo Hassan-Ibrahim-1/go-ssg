@@ -10,12 +10,15 @@ import (
 	"strings"
 
 	"github.com/Hassan-Ibrahim-1/go-ssg/markdown"
+	"github.com/Hassan-Ibrahim-1/go-ssg/toml"
 )
 
 type NodeType int
 
 const (
 	HTMLNode NodeType = iota
+	// stuff like css, images, etc
+	FileNode
 	DirectoryNode
 )
 
@@ -168,10 +171,10 @@ func stripEntryPrefix(de *directoryEntry, prefix string) {
 	}
 }
 
-func Build(dir string) ([]Node, error) {
+func Build(dir string) (Site, error) {
 	entries, err := loadDirectoryEntries(dir)
 	if err != nil {
-		return nil, err
+		return Site{}, err
 	}
 	return BuildFromEntries(entries)
 }
@@ -215,6 +218,8 @@ func buildNode(entry Entry) (*Node, error) {
 		const MarkdownExtension = ".md"
 		name := entry.Name()
 		content := entry.Content()
+		nodeType := FileNode
+
 		// convert all markdown files to html
 		if strings.HasSuffix(name, MarkdownExtension) {
 			extensionIndex := len(name) - len(MarkdownExtension)
@@ -232,11 +237,12 @@ func buildNode(entry Entry) (*Node, error) {
 					err,
 				)
 			}
+			nodeType = HTMLNode
 		}
 
 		return &Node{
 			Name:     name,
-			Type:     HTMLNode,
+			Type:     nodeType,
 			Children: nil,
 			Content:  content,
 		}, nil
@@ -285,6 +291,146 @@ func generateBlogHTML(doc markdown.HTMLDoc) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func BuildFromEntries(entries []Entry) ([]Node, error) {
-	return buildNodes(entries)
+//go:embed templates/index.html
+var indexRes string
+var indexTmpl = template.Must(template.New("index").Parse(indexRes))
+
+type rootPageInfo struct {
+	Title string
+	Blogs []Node
+	Theme string
+}
+
+func generateIndexNode(rpi rootPageInfo) (Node, error) {
+	var buf bytes.Buffer
+	err := indexTmpl.Execute(&buf, rpi)
+	if err != nil {
+		return Node{}, err
+	}
+
+	html := buf.Bytes()
+	return Node{
+		Name:     "index.html",
+		Type:     HTMLNode,
+		Content:  html,
+		Children: nil,
+	}, nil
+}
+
+func BuildFromEntries(entries []Entry) (Site, error) {
+	nodes, err := buildNodes(entries)
+	if err != nil {
+		return Site{}, err
+	}
+
+	var tomlNode *Node
+
+	indexFound := false
+	for _, node := range nodes {
+		if strings.HasSuffix(node.Name, "index.html") {
+			indexFound = true
+			break
+		}
+		if node.Name == "ssg.toml" {
+			tomlNode = &node
+		}
+	}
+
+	if tomlNode == nil {
+		return Site{}, fmt.Errorf("no ssg.toml file found in project root")
+	}
+
+	config, err := parseConfig(nodes, tomlNode.Content)
+	if err != nil {
+		return Site{}, fmt.Errorf("error parsing config: %w", err)
+	}
+
+	if !indexFound {
+		node, err := generateIndexNode(
+			rootPageInfo{
+				Title: config.Title,
+				Theme: config.Theme.Name,
+				Blogs: nodes,
+			},
+		)
+		if err != nil {
+			return Site{}, fmt.Errorf("error generating index node: %w", err)
+		}
+
+		nodes = append(nodes, node)
+	}
+
+	// TODO: delete the ssg.toml node here
+
+	return Site{
+		Nodes:  nodes,
+		Config: config,
+	}, nil
+}
+
+func parseConfig(nodes []Node, ssgToml []byte) (SiteConfig, error) {
+	config, err := toml.Parse(ssgToml)
+	if err != nil {
+		return SiteConfig{}, fmt.Errorf(
+			"failed to parse ssg.toml file: %w",
+			err,
+		)
+	}
+
+	title, ok := config["title"]
+	if !ok {
+		return SiteConfig{}, fmt.Errorf("no title provided in ssg.toml")
+	}
+
+	author, ok := config["author"]
+	if !ok {
+		return SiteConfig{}, fmt.Errorf("no author provided in ssg.toml")
+	}
+
+	theme, ok := config["theme"]
+	if !ok {
+		return SiteConfig{}, fmt.Errorf("no theme provided in ssg.toml")
+	}
+
+	themeNode, err := findThemeNode(nodes, theme)
+	if err != nil {
+		return SiteConfig{}, err
+	}
+
+	return SiteConfig{
+		Author: author,
+		Title:  title,
+		Theme:  themeNode,
+	}, nil
+}
+
+func findThemeNode(nodes []Node, theme string) (Node, error) {
+	themesDirFound := false
+	for _, node := range nodes {
+		if node.Name == "themes" {
+			themesDirFound = true
+
+			for _, child := range node.Children {
+				if strings.HasSuffix(child.Name, theme+".css") {
+					return child, nil
+				}
+			}
+		}
+	}
+
+	if !themesDirFound {
+		return Node{}, fmt.Errorf("no themes/ directory in project root")
+	}
+	return Node{}, fmt.Errorf("theme %s not found in themes/", theme)
+}
+
+type SiteConfig struct {
+	Author string
+	Title  string
+	Theme  Node
+}
+
+type Site struct {
+	Nodes  []Node
+	Config SiteConfig
 }
