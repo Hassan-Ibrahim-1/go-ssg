@@ -1,0 +1,4 @@
+title = "A Blog"
+theme = "rose-pine"
+deploy-to = "github"
+author = "Hassan"
