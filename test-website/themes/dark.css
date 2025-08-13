@@ -8,6 +8,11 @@ body {
     line-height: 1.6;
 }
 
+article p {
+    color: red;
+    background-color: black;
+}
+
 /* Blog title */
 #blog-title {
     text-align: center;

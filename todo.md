@@ -62,14 +62,19 @@ usage:
     -- fix server/. write a proper handler for routing to nodes
     -- figure out how to derive a node's name
 
-    - toml config file. (themes, website name, deployment info)
+    -- toml config file. (themes, website name, deployment info)
         integrate this toml file into site/
         it should parse this file and create some struct using it
         the struct can then be used to alter the generated html. so stuff like themes can be applied on to it
 
-    - get themes working - there should be a themes/ dir with css files that you can choose in the config file
-    
-    fix site tests
+    -- get themes working - there should be a themes/ dir with css files that you can choose in the config file
+
+    apply themes to blogs as well
+    fix tests
+    server hot reloading
+        move site building to the dev server.
+        just rebuild the directory on reload
+        really inefficient but it works
 
     -- read metadata from blogs
         - author
@@ -84,10 +89,8 @@ usage:
     be able to fully build the project, copy hugo on this, place html files where they place them
 
     figure out how to convert links in md files to other md files to html links
+        maybe links should just have a .html ext
 
-    if a directory is built using . or ./ then figure out how to properly strip paths
-    test server/
-    
     give the user access to site data using special commands like @title() / @author()
         or maybe go's templates can still be used?
     be able to place html files and markdown files. html files still contain the required metadata using +++
