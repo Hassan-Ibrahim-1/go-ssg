@@ -6,7 +6,6 @@ import (
 	"os"
 
 	"github.com/Hassan-Ibrahim-1/go-ssg/server"
-	"github.com/Hassan-Ibrahim-1/go-ssg/site"
 )
 
 func main() {
@@ -15,17 +14,16 @@ func main() {
 		return
 	}
 
-	st, err := site.Build(os.Args[1])
-	if err != nil {
-		log.Fatalln("Failed to build site:", err)
-	}
-
 	addr := ":4200"
-	s, err := server.New(addr, st)
+	s, err := server.New(addr, os.Args[1])
 	if err != nil {
 		log.Fatalln("Failed to create server", err)
 	}
-	defer s.Close()
+	defer func() {
+		if err := s.Close(); err != nil {
+			log.Println("failed to close server:", err)
+		}
+	}()
 
 	fmt.Println("listening on", addr)
 	err = s.ListenAndServe()
