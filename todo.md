@@ -72,12 +72,7 @@ usage:
     -- apply themes to blogs as well
     -- fix tests
 
-    server hot reloading
-        server side events
-        move site building to the dev server.
-        just rebuild the directory on reload
-        really inefficient but it works
-
+    -- server hot reloading
     write a decent css theme
     be able to fully build the project, copy hugo on this, place html files where they place them
     figure out how to deploy to github pages
