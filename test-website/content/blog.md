@@ -12,3 +12,5 @@ title = a new title
 
 [root](/index.html)
 
+[blog root](/content/index.html)
+

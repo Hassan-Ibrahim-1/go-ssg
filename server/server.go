@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -27,7 +26,7 @@ type Server struct {
 	server  *http.Server
 	dir     string
 
-	clients   []chan struct{}
+	clients   map[int]chan struct{}
 	clientsMu sync.Mutex
 }
 
@@ -69,6 +68,7 @@ func New(addr, dir string) (*Server, error) {
 		mux:     handler,
 		watcher: w,
 		dir:     dir,
+		clients: make(map[int]chan struct{}),
 	}
 
 	server.server = &http.Server{
@@ -151,9 +151,18 @@ func (s *Server) addClient() (chan struct{}, int) {
 	s.clientsMu.Lock()
 	defer s.clientsMu.Unlock()
 
-	i := len(s.clients)
-	s.clients = append(s.clients, make(chan struct{}))
-	return s.clients[i], i
+	c := make(chan struct{})
+	id := newId()
+	s.clients[id] = c
+
+	return c, id
+}
+
+var _id int = 0
+
+func newId() int {
+	_id++
+	return _id - 1
 }
 
 func (s *Server) removeClient(i int) {
@@ -161,7 +170,7 @@ func (s *Server) removeClient(i int) {
 	defer s.clientsMu.Unlock()
 
 	close(s.clients[i])
-	s.clients = slices.Delete(s.clients, i, i+1)
+	delete(s.clients, i)
 	log.Println("removed a client", i)
 }
 
