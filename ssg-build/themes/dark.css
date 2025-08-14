@@ -1,0 +1,68 @@
+/* Base dark mode styles */
+body {
+    background-color: #121212;
+    color: #e0e0e0;
+    font-family: system-ui, sans-serif;
+    margin: 0;
+    padding: 0;
+    line-height: 1.6;
+}
+
+article p {
+    color: cyan;
+    background-color: black;
+}
+
+/* Blog title */
+#blog-title {
+    text-align: center;
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin: 2rem 0;
+    color: #ffffff;
+}
+
+/* Blog list container */
+#blog-list {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+/* Blog items */
+.blog-item {
+    background-color: #1e1e1e;
+    padding: 1rem 2rem;
+    margin: 0.5rem 0;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 600px;
+    color: #f0f0f0;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+/* Hover effect */
+.blog-item:hover {
+    background-color: #292929;
+    transform: translateY(-2px);
+}
+
+/* Optional: subtle separator glow */
+.blog-item:not(:last-child) {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Responsive typography */
+@media (max-width: 600px) {
+    #blog-title {
+        font-size: 2rem;
+    }
+
+    .blog-item {
+        padding: 0.8rem 1.2rem;
+    }
+}

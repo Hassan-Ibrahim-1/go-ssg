@@ -73,9 +73,9 @@ usage:
     -- fix tests
 
     -- server hot reloading
-    write a decent css theme
     be able to fully build the project, copy hugo on this, place html files where they place them
     figure out how to deploy to github pages
+    write a decent css theme
 
     be able to place html files and markdown files. html files still contain the required metadata using +++
         -- what should be done with custom html files?
