@@ -70,7 +70,7 @@ usage:
     -- get themes working - there should be a themes/ dir with css files that you can choose in the config file
 
     -- apply themes to blogs as well
-    fix tests
+    -- fix tests
     server hot reloading
         move site building to the dev server.
         just rebuild the directory on reload

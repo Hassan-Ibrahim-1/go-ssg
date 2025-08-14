@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Hassan-Ibrahim-1/go-ssg/site"
@@ -19,6 +20,9 @@ type Server struct {
 	mux     *http.ServeMux
 	watcher *fsnotify.Watcher
 	server  *http.Server
+
+	watcherMu sync.Mutex
+	fsCond    *sync.Cond
 }
 
 func (s *Server) ListenAndServe() error {
@@ -38,7 +42,10 @@ func New(addr, dir string) (*Server, error) {
 		log.Fatalln("failed to build site:", err)
 	}
 
-	handler := newNodeHandler(st.Nodes)
+	handler, err := newNodeHandler(st.Nodes)
+	if err != nil {
+		return nil, err
+	}
 
 	w, err := newWatcher(dir)
 	if err != nil {
@@ -58,6 +65,9 @@ func New(addr, dir string) (*Server, error) {
 			ReadHeaderTimeout: 2 * time.Second,
 		},
 	}
+	server.fsCond = sync.NewCond(&server.watcherMu)
+
+	server.mux.Handle("/events", server.eventHandler())
 
 	go listenToEvents(server)
 
@@ -71,16 +81,47 @@ func listenToEvents(s *Server) {
 			if !ok {
 				return
 			}
-			log.Println("event:", event)
-			if event.Has(fsnotify.Write) {
-				// TODO: refresh here
-				log.Println("modified file:", event.Name)
-			}
+			log.Println("event", event)
+			s.fsCond.Broadcast()
+			time.Sleep(10 * time.Millisecond)
+
 		case err, ok := <-s.watcher.Errors:
 			if !ok {
 				return
 			}
 			log.Println("error:", err)
+		}
+	}
+}
+
+func (s *Server) eventHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Connection", "keep-alive")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+
+		flusher, ok := w.(http.Flusher)
+		if !ok {
+			http.Error(
+				w,
+				"Streaming unsupported",
+				http.StatusInternalServerError,
+			)
+			return
+		}
+
+		log.Println("registering an event handler")
+
+		for {
+			s.fsCond.L.Lock()
+			s.fsCond.Wait()
+			s.fsCond.L.Unlock()
+
+			log.Println("sending a reload signal")
+
+			w.Write([]byte("data: reload\n\n"))
+			flusher.Flush()
 		}
 	}
 }
@@ -91,6 +132,7 @@ func newWatcher(dir string) (*fsnotify.Watcher, error) {
 		return nil, err
 	}
 
+	// TODO: consider filepath.WalkDir
 	err = addDirToWatcher(watcher, dir)
 	if err != nil {
 		return nil, err
@@ -119,10 +161,20 @@ func addDirToWatcher(w *fsnotify.Watcher, dir string) error {
 	return nil
 }
 
-func newNodeHandler(nodes []site.Node) *http.ServeMux {
+func newNodeHandler(nodes []site.Node) (*http.ServeMux, error) {
 	mux := http.NewServeMux()
 	addNodesToMux(nodes, mux)
 	for _, node := range nodes {
+
+		// this check is done here because all the reserved names can only
+		// conflict with directories at the root level.
+		if isReserved(node.Name) {
+			return nil, fmt.Errorf(
+				"/%s is reserved for the server, choose another directory name",
+				node.Name,
+			)
+		}
+
 		if isIndex(node.Name) {
 			mux.HandleFunc(
 				"/",
@@ -136,7 +188,7 @@ func newNodeHandler(nodes []site.Node) *http.ServeMux {
 		}
 	}
 
-	return mux
+	return mux, nil
 }
 
 func addNodesToMux(nodes []site.Node, mux *http.ServeMux) {
@@ -202,4 +254,12 @@ func indexNode(node site.Node) *site.Node {
 
 func isIndex(nodeName string) bool {
 	return strings.HasSuffix(nodeName, "index.html")
+}
+
+func isReserved(name string) bool {
+	switch name {
+	case "events":
+		return true
+	}
+	return false
 }

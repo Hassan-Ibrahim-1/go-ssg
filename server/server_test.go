@@ -118,7 +118,10 @@ func TestNodeHandler(t *testing.T) {
 				req := httptest.NewRequest(http.MethodGet, tt.requestPath, nil)
 				rc := httptest.NewRecorder()
 
-				n := newNodeHandler(tt.nodes)
+				n, err := newNodeHandler(tt.nodes)
+				if err != nil {
+					t.Fatal(err)
+				}
 				n.ServeHTTP(rc, req)
 
 				if rc.Code != http.StatusOK {

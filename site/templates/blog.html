@@ -5,6 +5,18 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="stylesheet" href="{{.Theme}}" />
         <title>{{.Title}}</title>
+        <script>
+            const eventSource = new EventSource("http://localhost:4200/events");
+            eventSource.onmessage = (e) => {
+                console.log("got message", e.data);
+                if (e.data === "reload") {
+                    location.reload();
+                }
+            };
+            eventSource.onerror = (err) => {
+                console.error("SSE error:", err);
+            };
+        </script>
     </head>
     <body>
         <div id="title">
