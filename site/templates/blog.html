@@ -6,16 +6,38 @@
         <link rel="stylesheet" href="{{.Theme}}" />
         <title>{{.Title}}</title>
         <script>
-            const eventSource = new EventSource("http://localhost:4200/events");
+            let eventSource = new EventSource("/events");
             eventSource.onmessage = (e) => {
                 console.log("got message", e.data);
                 if (e.data === "reload") {
-                    location.reload();
+                    reload();
+                } else if (e.data === "close") {
+                    eventSource.close();
                 }
             };
             eventSource.onerror = (err) => {
                 console.error("SSE error:", err);
+                eventSource.close();
             };
+
+            function reload() {
+                const url = window.location.href;
+                console.log("url", url);
+                fetch(url, {
+                    method: "GET",
+                })
+                    .then((response) => {
+                        if (!response.ok)
+                            throw new Error("Network response was not ok");
+                        return response.text();
+                    })
+                    .then((data) => {
+                        document.documentElement.innerHTML = data;
+                    })
+                    .catch((err) => {
+                        console.error(err);
+                    });
+            }
         </script>
     </head>
     <body>

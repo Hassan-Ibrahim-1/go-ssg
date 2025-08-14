@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -20,9 +21,16 @@ type Server struct {
 	mux     *http.ServeMux
 	watcher *fsnotify.Watcher
 	server  *http.Server
+	dir     string
 
-	watcherMu sync.Mutex
-	fsCond    *sync.Cond
+	clients   []chan struct{}
+	clientsMu sync.Mutex
+}
+
+func (s *Server) handler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		s.mux.ServeHTTP(w, r)
+	}
 }
 
 func (s *Server) ListenAndServe() error {
@@ -56,16 +64,17 @@ func New(addr, dir string) (*Server, error) {
 		site:    st,
 		mux:     handler,
 		watcher: w,
-		server: &http.Server{
-			Addr:              addr,
-			Handler:           handler,
-			ReadTimeout:       5 * time.Second,
-			WriteTimeout:      10 * time.Second,
-			IdleTimeout:       120 * time.Second,
-			ReadHeaderTimeout: 2 * time.Second,
-		},
+		dir:     dir,
 	}
-	server.fsCond = sync.NewCond(&server.watcherMu)
+
+	server.server = &http.Server{
+		Addr:              addr,
+		Handler:           server.handler(),
+		ReadTimeout:       5 * time.Second,
+		WriteTimeout:      10 * time.Second,
+		IdleTimeout:       120 * time.Second,
+		ReadHeaderTimeout: 2 * time.Second,
+	}
 
 	server.mux.Handle("/events", server.eventHandler())
 
@@ -74,16 +83,63 @@ func New(addr, dir string) (*Server, error) {
 	return server, nil
 }
 
+func (s *Server) rebuild() {
+	newSite, err := site.Build(s.dir)
+	if err != nil {
+		log.Println("failed to build site:", err)
+		return
+	}
+
+	newHandler, err := newNodeHandler(newSite.Nodes)
+	if err != nil {
+		log.Println("failed to build site:", err)
+		return
+	}
+
+	s.site = newSite
+	s.mux = newHandler
+	log.Println("new site:", sprintNodeNames(s.site.Nodes))
+	s.mux.Handle("/events", s.eventHandler())
+}
+
+func sprintNodeNames(nodes []site.Node) string {
+	names := make([]string, len(nodes))
+	for i, node := range nodes {
+		names[i] = node.Name
+		if len(node.Children) > 0 {
+			names = append(names, sprintNodeNames(node.Children))
+		}
+	}
+	return fmt.Sprintf("%+v", names)
+}
+
 func listenToEvents(s *Server) {
+	timer := time.NewTimer(time.Hour * 24 * 365)
+	checkForEvents := true
+
 	for {
 		select {
-		case event, ok := <-s.watcher.Events:
+		case _ = <-timer.C:
+			checkForEvents = true
+			timer.Reset(time.Hour * 24 * 365)
+
+		case _, ok := <-s.watcher.Events:
 			if !ok {
 				return
 			}
-			log.Println("event", event)
-			s.fsCond.Broadcast()
-			time.Sleep(10 * time.Millisecond)
+			if !checkForEvents {
+				continue
+			}
+
+			// sleep to let the fs rebuild
+			time.Sleep(100 * time.Millisecond)
+
+			s.rebuild()
+			s.pingClients()
+			log.Println("pinging clients")
+
+			timer.Reset(500 * time.Millisecond)
+			checkForEvents = false
 
 		case err, ok := <-s.watcher.Errors:
 			if !ok {
@@ -92,6 +148,29 @@ func listenToEvents(s *Server) {
 			log.Println("error:", err)
 		}
 	}
+}
+
+func (s *Server) pingClients() {
+	for _, c := range s.clients {
+		c <- struct{}{}
+	}
+}
+
+func (s *Server) addClient() (chan struct{}, int) {
+	s.clientsMu.Lock()
+	defer s.clientsMu.Unlock()
+
+	i := len(s.clients)
+	s.clients = append(s.clients, make(chan struct{}))
+	return s.clients[i], i
+}
+
+func (s *Server) removeClient(i int) {
+	s.clientsMu.Lock()
+	defer s.clientsMu.Unlock()
+
+	close(s.clients[i])
+	s.clients = slices.Delete(s.clients, i, i+1)
 }
 
 func (s *Server) eventHandler() http.HandlerFunc {
@@ -111,16 +190,44 @@ func (s *Server) eventHandler() http.HandlerFunc {
 			return
 		}
 
+		c, i := s.addClient()
+		defer s.removeClient(i)
+
 		log.Println("registering an event handler")
 
+		ctx := r.Context()
+		connectionClosed := false
+
+	refreshLoop:
 		for {
-			s.fsCond.L.Lock()
-			s.fsCond.Wait()
-			s.fsCond.L.Unlock()
+			select {
+			case _ = <-ctx.Done():
+				log.Printf("Client %s closed the connection\n", r.RemoteAddr)
+				connectionClosed = true
+				break refreshLoop
+			case _, ok := <-c:
+				if !ok {
+					break refreshLoop
+				}
+				log.Println("sending a reload signal")
 
-			log.Println("sending a reload signal")
+				_, err := w.Write([]byte("data: reload\n\n"))
+				if err != nil {
+					log.Println("error when writing to client:", err)
+					break refreshLoop
+				}
 
-			w.Write([]byte("data: reload\n\n"))
+			}
+			flusher.Flush()
+		}
+
+		if !connectionClosed {
+			log.Println("sending a close signal")
+			_, err := w.Write([]byte("data: close\n\n"))
+			if err != nil {
+				log.Println("error when writing to client:", err)
+				return
+			}
 			flusher.Flush()
 		}
 	}

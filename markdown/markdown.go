@@ -15,7 +15,7 @@ type HTMLDoc struct {
 func ToHTML(md []byte) (HTMLDoc, error) {
 	metadata, content, err := parseMetadata(md)
 	if err != nil {
-		return HTMLDoc{}, fmt.Errorf("Failed to parse metadata: %w", err)
+		return HTMLDoc{}, fmt.Errorf("failed to parse metadata: %w", err)
 	}
 
 	html := convertMdSanitized(content)

@@ -17,7 +17,7 @@ func main() {
 	addr := ":4200"
 	s, err := server.New(addr, os.Args[1])
 	if err != nil {
-		log.Fatalln("Failed to create server", err)
+		log.Fatalln("failed to create server", err)
 	}
 	defer func() {
 		if err := s.Close(); err != nil {

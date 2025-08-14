@@ -71,10 +71,19 @@ usage:
 
     -- apply themes to blogs as well
     -- fix tests
+
     server hot reloading
+        server side events
         move site building to the dev server.
         just rebuild the directory on reload
         really inefficient but it works
+
+    write a decent css theme
+    be able to fully build the project, copy hugo on this, place html files where they place them
+    figure out how to deploy to github pages
+
+    be able to place html files and markdown files. html files still contain the required metadata using +++
+        -- what should be done with custom html files?
 
     -- read metadata from blogs
         - author
@@ -86,11 +95,9 @@ usage:
 
     -- create a web server using site.Nodes
     -- in nodes the file extension should be replaced from ".md" to ".html" when converting
-    be able to fully build the project, copy hugo on this, place html files where they place them
 
     figure out how to convert links in md files to other md files to html links
         maybe links should just have a .html ext
 
     give the user access to site data using special commands like @title() / @author()
         or maybe go's templates can still be used?
-    be able to place html files and markdown files. html files still contain the required metadata using +++

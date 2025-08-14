@@ -123,7 +123,7 @@ func newDirectoryEntry(
 		children[i], err = newDirectoryEntry(entry, deName)
 		if err != nil {
 			return nil, fmt.Errorf(
-				"Failed to create a directory entry: %w",
+				"failed to create a directory entry: %w",
 				err,
 			)
 		}
@@ -140,7 +140,7 @@ func newDirectoryEntry(
 func loadDirectoryEntries(dir string) ([]Entry, error) {
 	dirContents, err := os.ReadDir(dir)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to open directory: %w", err)
+		return nil, fmt.Errorf("failed to open directory: %w", err)
 	}
 
 	entries := make([]Entry, len(dirContents))
@@ -354,7 +354,7 @@ func generateBlogHTML(doc markdown.HTMLDoc, theme string) ([]byte, error) {
 	var buf bytes.Buffer
 	err := blogTmpl.Execute(&buf, blogInfo)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to execute blog template: %w", err)
+		return nil, fmt.Errorf("failed to execute blog template: %w", err)
 	}
 
 	return buf.Bytes(), nil
