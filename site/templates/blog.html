@@ -6,18 +6,17 @@
         <link rel="stylesheet" href="{{.Theme}}" />
         <title>{{.Title}}</title>
         <script>
-            let eventSource = new EventSource("/events");
-            eventSource.onmessage = (e) => {
+            const source = new EventSource("/events");
+            source.onmessage = (e) => {
                 console.log("got message", e.data);
                 if (e.data === "reload") {
                     reload();
                 } else if (e.data === "close") {
-                    eventSource.close();
+                    source.close();
                 }
             };
-            eventSource.onerror = (err) => {
+            source.onerror = (err) => {
                 console.error("SSE error:", err);
-                eventSource.close();
             };
 
             function reload() {
@@ -32,7 +31,12 @@
                         return response.text();
                     })
                     .then((data) => {
-                        document.documentElement.innerHTML = data;
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(data, "text/html");
+                        console.log("Fetched HTML");
+                        const query = "#main-content";
+                        document.querySelector(query).innerHTML =
+                            doc.querySelector(query).innerHTML;
                     })
                     .catch((err) => {
                         console.error(err);
@@ -48,6 +52,6 @@
             <p id="author-name">{{.AuthorName}}</p>
             <p id="data-published">{{.PublishedDate}}</p>
         </div>
-        <article>{{.Blog}}</article>
+        <article id="main-content">{{.Blog}}</article>
     </body>
 </html>

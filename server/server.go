@@ -135,10 +135,10 @@ func listenToEvents(s *Server) {
 			time.Sleep(100 * time.Millisecond)
 
 			s.rebuild()
-			s.pingClients()
 			log.Println("pinging clients")
+			s.pingClients()
 
-			timer.Reset(500 * time.Millisecond)
+			timer.Reset(200 * time.Millisecond)
 			checkForEvents = false
 
 		case err, ok := <-s.watcher.Errors:
@@ -171,6 +171,7 @@ func (s *Server) removeClient(i int) {
 
 	close(s.clients[i])
 	s.clients = slices.Delete(s.clients, i, i+1)
+	log.Println("removed a client", i)
 }
 
 func (s *Server) eventHandler() http.HandlerFunc {
@@ -196,40 +197,35 @@ func (s *Server) eventHandler() http.HandlerFunc {
 		log.Println("registering an event handler")
 
 		ctx := r.Context()
-		connectionClosed := false
 
 	refreshLoop:
 		for {
 			select {
 			case _ = <-ctx.Done():
 				log.Printf("Client %s closed the connection\n", r.RemoteAddr)
-				connectionClosed = true
-				break refreshLoop
+				return
 			case _, ok := <-c:
 				if !ok {
 					break refreshLoop
 				}
-				log.Println("sending a reload signal")
 
+				log.Println("sending a reload signal")
 				_, err := w.Write([]byte("data: reload\n\n"))
 				if err != nil {
 					log.Println("error when writing to client:", err)
 					break refreshLoop
 				}
-
+				flusher.Flush()
 			}
-			flusher.Flush()
 		}
 
-		if !connectionClosed {
-			log.Println("sending a close signal")
-			_, err := w.Write([]byte("data: close\n\n"))
-			if err != nil {
-				log.Println("error when writing to client:", err)
-				return
-			}
-			flusher.Flush()
+		log.Println("sending a close signal")
+		_, err := w.Write([]byte("data: close\n\n"))
+		if err != nil {
+			log.Println("error when writing to client:", err)
+			return
 		}
+		flusher.Flush()
 	}
 }
 
