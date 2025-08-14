@@ -30,7 +30,7 @@ func writeNode(dir string, node Node) error {
 	case HTMLNode:
 		return os.WriteFile(filepath.Join(dir, node.Name), node.Content, 0644)
 	case FileNode:
-		if strings.HasSuffix(node.Name, ".toml") {
+		if !strings.HasSuffix(node.Name, ".css") {
 			return nil
 		}
 		return os.WriteFile(filepath.Join(dir, node.Name), node.Content, 0644)
