@@ -105,17 +105,6 @@ func (s *Server) rebuild() {
 	s.mux.Handle("/fsevents", s.eventHandler())
 }
 
-func sprintNodeNames(nodes []site.Node) string {
-	names := make([]string, len(nodes))
-	for i, node := range nodes {
-		names[i] = node.Name
-		if len(node.Children) > 0 {
-			names = append(names, sprintNodeNames(node.Children))
-		}
-	}
-	return fmt.Sprintf("%+v", names)
-}
-
 func listenToEvents(s *Server) {
 	timer := time.NewTimer(time.Hour * 24 * 365)
 	checkForEvents := true
