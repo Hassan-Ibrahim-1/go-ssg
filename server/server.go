@@ -5,6 +5,7 @@ import (
 	"log"
 	"mime"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -14,7 +15,10 @@ import (
 
 	"github.com/Hassan-Ibrahim-1/go-ssg/site"
 	"github.com/fsnotify/fsnotify"
+	"github.com/gorilla/websocket"
 )
+
+var websocketUpgrader = websocket.Upgrader{}
 
 type Server struct {
 	site    site.Site
@@ -76,7 +80,7 @@ func New(addr, dir string) (*Server, error) {
 		ReadHeaderTimeout: 2 * time.Second,
 	}
 
-	server.mux.Handle("/events", server.eventHandler())
+	server.mux.Handle("/fsevents", server.eventHandler())
 
 	go listenToEvents(server)
 
@@ -98,8 +102,7 @@ func (s *Server) rebuild() {
 
 	s.site = newSite
 	s.mux = newHandler
-	log.Println("new site:", sprintNodeNames(s.site.Nodes))
-	s.mux.Handle("/events", s.eventHandler())
+	s.mux.Handle("/fsevents", s.eventHandler())
 }
 
 func sprintNodeNames(nodes []site.Node) string {
@@ -135,7 +138,6 @@ func listenToEvents(s *Server) {
 			time.Sleep(100 * time.Millisecond)
 
 			s.rebuild()
-			log.Println("pinging clients")
 			s.pingClients()
 
 			timer.Reset(200 * time.Millisecond)
@@ -176,27 +178,31 @@ func (s *Server) removeClient(i int) {
 
 func (s *Server) eventHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/event-stream")
-		w.Header().Set("Cache-Control", "no-cache")
-		w.Header().Set("Connection", "keep-alive")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-
-		flusher, ok := w.(http.Flusher)
-		if !ok {
-			http.Error(
-				w,
-				"Streaming unsupported",
-				http.StatusInternalServerError,
-			)
+		conn, err := websocketUpgrader.Upgrade(w, r, nil)
+		if err != nil {
+			log.Println("upgrade err:", err)
 			return
 		}
+		defer conn.Close()
 
 		c, i := s.addClient()
 		defer s.removeClient(i)
 
-		log.Println("registering an event handler")
-
 		ctx := r.Context()
+
+		// read url
+		mt, rawUrl, err := conn.ReadMessage()
+		if mt != websocket.TextMessage {
+			log.Println("expected a TextMessage. got", mt)
+			return
+		}
+
+		url, err := url.Parse(string(rawUrl))
+		if err != nil {
+			http.Error(w, "Bad url", http.StatusBadRequest)
+			return
+		}
+		path := trimSlash(url.Path)
 
 	refreshLoop:
 		for {
@@ -209,24 +215,37 @@ func (s *Server) eventHandler() http.HandlerFunc {
 					break refreshLoop
 				}
 
-				log.Println("sending a reload signal")
-				_, err := w.Write([]byte("data: reload\n\n"))
+				node := matchNode(s.site.Nodes, path)
+				if node == nil {
+					log.Println("could not find node", path)
+					return
+				}
+
+				err := conn.WriteMessage(websocket.TextMessage, node.Content)
 				if err != nil {
 					log.Println("error when writing to client:", err)
 					break refreshLoop
 				}
-				flusher.Flush()
 			}
 		}
-
-		log.Println("sending a close signal")
-		_, err := w.Write([]byte("data: close\n\n"))
-		if err != nil {
-			log.Println("error when writing to client:", err)
-			return
-		}
-		flusher.Flush()
+		log.Println("closing connection to", r.RemoteAddr)
 	}
+}
+
+func matchNode(nodes []site.Node, name string) *site.Node {
+	for _, node := range nodes {
+		if node.Name == name {
+			return &node
+		}
+		if n := matchNode(node.Children, name); n != nil {
+			return n
+		}
+	}
+	return nil
+}
+
+func trimSlash(s string) string {
+	return strings.TrimSuffix(strings.TrimPrefix(s, "/"), "/")
 }
 
 func newWatcher(dir string) (*fsnotify.Watcher, error) {
@@ -361,7 +380,7 @@ func isIndex(nodeName string) bool {
 
 func isReserved(name string) bool {
 	switch name {
-	case "events":
+	case "fsevents":
 		return true
 	}
 	return false
