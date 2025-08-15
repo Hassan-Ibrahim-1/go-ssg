@@ -47,8 +47,8 @@ func (s *Server) Close() error {
 	return s.Close()
 }
 
-func New(addr, dir string) (*Server, error) {
-	st, err := site.Build(dir)
+func New(addr, dir string, buildDrafts bool) (*Server, error) {
+	st, err := site.Build(dir, buildDrafts)
 	if err != nil {
 		log.Fatalln("failed to build site:", err)
 	}
@@ -88,7 +88,7 @@ func New(addr, dir string) (*Server, error) {
 }
 
 func (s *Server) rebuild() {
-	newSite, err := site.Build(s.dir)
+	newSite, err := site.Build(s.dir, s.site.Config.BuildDrafts)
 	if err != nil {
 		log.Println("failed to build site:", err)
 		return

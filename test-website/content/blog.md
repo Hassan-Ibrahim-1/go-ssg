@@ -1,12 +1,11 @@
 +++
 title = a new title
+draft = false
 +++
 
 ## Blog.md
 
-* whats up
-* test
-* sdfkdskf
+* up
 
 [x] **hey from /content/blog.md**
 

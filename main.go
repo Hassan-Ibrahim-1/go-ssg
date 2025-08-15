@@ -25,7 +25,7 @@ func main() {
 	case DevServer:
 		opts := action.devServerOpts
 		addr := fmt.Sprintf(":%d", opts.port)
-		s, err := server.New(addr, action.siteDir)
+		s, err := server.New(addr, action.siteDir, opts.buildDrafts)
 		if err != nil {
 			log.Fatalln("failed to create server", err)
 		}
@@ -44,7 +44,7 @@ func main() {
 	case BuildSite:
 		opts := action.buildSiteOpts
 
-		s, err := site.Build(action.siteDir)
+		s, err := site.Build(action.siteDir, opts.buildDrafts)
 		if err != nil {
 			log.Fatalln(err)
 		}

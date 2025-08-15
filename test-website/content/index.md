@@ -1,5 +1,6 @@
 +++
 title = /content/index.md
+draft = false
 +++
 
 ### content/index.md
