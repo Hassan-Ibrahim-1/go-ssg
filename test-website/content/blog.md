@@ -1,6 +1,6 @@
 +++
 title = a new title
-draft = false
+draft = true
 +++
 
 ## Blog.md
