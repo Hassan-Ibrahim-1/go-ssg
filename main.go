@@ -6,39 +6,52 @@ import (
 	"os"
 
 	"github.com/Hassan-Ibrahim-1/go-ssg/server"
+	"github.com/Hassan-Ibrahim-1/go-ssg/site"
 )
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Println("usage: ssg [directory]")
+		fmt.Println(sprintUsage())
 		return
 	}
 
-	// dir := os.Args[1]
-	// s, err := site.Build(dir)
-	// if err != nil {
-	// 	log.Fatalln(err)
-	// }
-	//
-	// err = site.BuildSite(s, "ssg-build")
-	// if err != nil {
-	// 	log.Fatalln(err)
-	// }
-	//
-	addr := ":4200"
-	s, err := server.New(addr, os.Args[1])
+	action, err := parseArgs(os.Args[1:])
 	if err != nil {
-		log.Fatalln("failed to create server", err)
+		fmt.Println(err)
+		os.Exit(1)
 	}
-	defer func() {
-		if err := s.Close(); err != nil {
-			log.Println("failed to close server:", err)
-		}
-	}()
 
-	fmt.Println("listening on", addr)
-	err = s.ListenAndServe()
-	if err != nil {
-		log.Fatalln("server failed:", err)
+	switch action.typ {
+	case DevServer:
+		opts := action.devServerOpts
+		addr := fmt.Sprintf(":%d", opts.port)
+		s, err := server.New(addr, action.siteDir)
+		if err != nil {
+			log.Fatalln("failed to create server", err)
+		}
+		defer func() {
+			if err := s.Close(); err != nil {
+				log.Println("failed to close server:", err)
+			}
+		}()
+
+		fmt.Println("listening on", addr)
+		err = s.ListenAndServe()
+		if err != nil {
+			log.Fatalln("server failed:", err)
+		}
+
+	case BuildSite:
+		opts := action.buildSiteOpts
+
+		s, err := site.Build(action.siteDir)
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		err = site.BuildSite(s, opts.buildDir)
+		if err != nil {
+			log.Fatalln(err)
+		}
 	}
 }

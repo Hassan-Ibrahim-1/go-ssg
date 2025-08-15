@@ -74,7 +74,11 @@ usage:
 
     -- server hot reloading
     -- be able to fully build the project
-    figure out how to deploy to github pages
+    -- figure out how to deploy to github pages
+    -- create a cli for ssg
+    drafts
+        -- pass a flag to site to tell it whether to include drafts or not
+        -- it should strip out all md files with the draft = true header
     write a decent css theme
 
     be able to place html files and markdown files. html files still contain the required metadata using +++

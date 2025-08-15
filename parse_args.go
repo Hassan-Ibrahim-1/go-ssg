@@ -38,11 +38,15 @@ const (
 
 // TODO: help menu
 
+func sprintUsage() string {
+	return "usage: ssg [dev / build] [directory]"
+}
+
 // ssg dev [directory] --port= -D --drafts
 // ssg build [directory] --build-dir= -D --drafts
 func parseArgs(args []string) (Action, error) {
 	if len(args) < 2 {
-		return Action{}, fmt.Errorf("usage: ssg [dev / build] [directory]")
+		return Action{}, fmt.Errorf("%s", sprintUsage())
 	}
 
 	action := Action{}

@@ -4,13 +4,12 @@ title = a new title
 
 ## Blog.md
 
+* whats up
 * test
 * sdfkdskf
-* whats up
 
 [x] **hey from /content/blog.md**
 
+[blog](/content/index.html)
+
 [root](/index.html)
-
-[blog root](/content/index.html)
-
