@@ -265,6 +265,11 @@ func (sb *siteBuilder) buildNodes(entries []Entry) ([]Node, error) {
 }
 
 func (sb *siteBuilder) buildNode(entry Entry) (*Node, error) {
+	// ignore hidden files
+	if strings.HasPrefix(entry.Name(), ".") {
+		return nil, nil
+	}
+
 	switch entry.Type() {
 	case DirectoryEntry:
 		children := entry.Children()
