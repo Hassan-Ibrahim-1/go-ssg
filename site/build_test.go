@@ -8,6 +8,203 @@ import (
 	"testing"
 )
 
+func TestBuildSite(t *testing.T) {
+	outDir := t.TempDir()
+
+	err := os.Mkdir(filepath.Join(outDir, ".git"), 0755)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = os.WriteFile(
+		filepath.Join(outDir, ".git/gitfile.txt"),
+		[]byte("git"),
+		0644,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = os.WriteFile(
+		filepath.Join(outDir, ".git/gitfile2.txt"),
+		[]byte("git"),
+		0644,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = os.Mkdir(filepath.Join(outDir, "removeDir"), 0755)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = os.WriteFile(
+		filepath.Join(outDir, "removeDir/removeFile.txt"),
+		[]byte("removeFile.txt"),
+		0644,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = os.Mkdir(filepath.Join(outDir, "content"), 0755)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = os.WriteFile(
+		filepath.Join(outDir, "content/test.html"),
+		[]byte("test.html"),
+		0644,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	siteDir := t.TempDir()
+	err = os.Mkdir(filepath.Join(siteDir, ".git"), 0755)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = os.WriteFile(
+		filepath.Join(siteDir, ".git/gitfile.txt"),
+		[]byte("site git"),
+		0644,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = os.Mkdir(filepath.Join(siteDir, "content"), 0755)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = os.WriteFile(
+		filepath.Join(siteDir, "content/index.md"),
+		[]byte(markdownHeader()+"content/index.md"),
+		0644,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = os.WriteFile(
+		filepath.Join(siteDir, "content/inner.md"),
+		[]byte(markdownHeader()+"content/inner.md"),
+		0644,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = os.WriteFile(
+		filepath.Join(siteDir, "index.md"),
+		[]byte(markdownHeader()+"index.md"),
+		0644,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = os.Mkdir(filepath.Join(siteDir, "themes"), 0755)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = os.WriteFile(
+		filepath.Join(siteDir, "themes/dark.css"),
+		[]byte("themes/dark.css"),
+		0644,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = os.WriteFile(
+		filepath.Join(siteDir, "themes/light.css"),
+		[]byte("themes/light.css"),
+		0644,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = os.WriteFile(
+		filepath.Join(siteDir, "ssg.toml"),
+		[]byte(defaultSsgToml()),
+		0644,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	site, err := Build(siteDir, false)
+	if err != nil {
+		t.Fatalf("failed to build site: %v", err)
+	}
+
+	err = BuildSite(site, outDir)
+	if err != nil {
+		t.Fatalf("failed to build site: %v", err)
+	}
+
+	files := []string{
+		".git",
+		".git/gitfile.txt",
+		".git/gitfile2.txt",
+		"index.html",
+		"content",
+		"content/inner.html",
+		"content/index.html",
+		"themes",
+		"themes/dark.css",
+		"themes/light.css",
+	}
+
+	expected := make(map[string]bool, len(files))
+	for _, file := range files {
+		expected[file] = false
+	}
+
+	err = filepath.WalkDir(
+		outDir,
+		func(path string, d fs.DirEntry, err error) error {
+			if path == outDir {
+				return nil
+			}
+			path = strings.TrimPrefix(path, outDir)[1:]
+			if err != nil {
+				t.Fatalf("failed to walk dir %s: %v", path, err)
+			}
+
+			_, ok := expected[path]
+			if !ok {
+				t.Errorf("unexpected file %s", path)
+				return nil
+			}
+			expected[path] = true
+
+			return nil
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for file, found := range expected {
+		if !found {
+			t.Errorf("%s was not found", file)
+		}
+	}
+}
+
+func markdownHeader() string {
+	return "+++\ntitle=blog\n+++\n"
+}
+
 func TestBuildSiteManual(t *testing.T) {
 	tmpDir := t.TempDir()
 
