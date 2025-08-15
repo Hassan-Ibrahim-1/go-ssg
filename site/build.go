@@ -36,10 +36,17 @@ func writeNode(dir string, node Node) error {
 		return os.WriteFile(filepath.Join(dir, node.Name), node.Content, 0644)
 
 	case DirectoryNode:
-		err := createIfNotExists(filepath.Join(dir, node.Name))
+		path := filepath.Join(dir, node.Name)
+		err := createIfNotExists(path)
 		if err != nil {
 			return err
 		}
+
+		err = clearFiles(path)
+		if err != nil {
+			return fmt.Errorf("clearHTMLFiles failed: %w", err)
+		}
+
 		for _, child := range node.Children {
 			err = writeNode(dir, child)
 			if err != nil {
@@ -47,6 +54,24 @@ func writeNode(dir string, node Node) error {
 			}
 		}
 	}
+	return nil
+}
+
+func clearFiles(dir string) error {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return fmt.Errorf("os.ReadDir failed: %w", err)
+	}
+
+	for _, entry := range entries {
+		if entry.Type().IsRegular() {
+			err = os.Remove(filepath.Join(dir, entry.Name()))
+			if err != nil {
+				return fmt.Errorf("os.Remove failed: %w", err)
+			}
+		}
+	}
+
 	return nil
 }
 
