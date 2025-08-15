@@ -73,7 +73,7 @@ usage:
     -- fix tests
 
     -- server hot reloading
-    be able to fully build the project, copy hugo on this, place html files where they place them
+    -- be able to fully build the project
     figure out how to deploy to github pages
     write a decent css theme
 

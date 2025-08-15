@@ -6,7 +6,7 @@ title = a new title
 
 * test
 * sdfkdskf
-* asfjksdjfk
+* whats up
 
 [x] **hey from /content/blog.md**
 
