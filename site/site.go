@@ -171,19 +171,19 @@ func stripEntryPrefix(de *directoryEntry, prefix string) {
 	}
 }
 
-func Build(dir string) (Site, error) {
+func Build(dir string, buildDrafts bool) (Site, error) {
 	entries, err := loadDirectoryEntries(dir)
 	if err != nil {
 		return Site{}, err
 	}
-	return BuildFromEntries(entries)
+	return BuildFromEntries(entries, buildDrafts)
 }
 
 type siteBuilder struct {
 	config SiteConfig
 }
 
-func newSiteBuilder(entries []Entry) (siteBuilder, error) {
+func newSiteBuilder(entries []Entry, buildDrafts bool) (siteBuilder, error) {
 	for _, entry := range entries {
 		if entry.Name() == "ssg.toml" {
 			ssgToml := entry.Content()
@@ -194,6 +194,7 @@ func newSiteBuilder(entries []Entry) (siteBuilder, error) {
 					err,
 				)
 			}
+			config.BuildDrafts = buildDrafts
 			return siteBuilder{config}, nil
 		}
 	}
@@ -296,6 +297,16 @@ func (sb *siteBuilder) buildNode(entry Entry) (*Node, error) {
 				return nil, fmt.Errorf("markdown.ToHTML failed: %w", err)
 			}
 
+			if !sb.config.BuildDrafts {
+				draft, err := isDraft(doc)
+				if err != nil {
+					return nil, err
+				}
+				if draft {
+					return nil, nil
+				}
+			}
+
 			content, err = generateBlogHTML(doc, sb.config.Theme)
 			if err != nil {
 				return nil, fmt.Errorf(
@@ -315,7 +326,24 @@ func (sb *siteBuilder) buildNode(entry Entry) (*Node, error) {
 		}, nil
 	}
 	// unreachable
-	panic(fmt.Sprint("unreachabe. invalid entry type:", entry.Type()))
+	panic(fmt.Sprint("unreachable. invalid entry type:", entry.Type()))
+}
+
+func isDraft(doc markdown.HTMLDoc) (bool, error) {
+	draft, ok := doc.Metadata["draft"]
+	if !ok {
+		return false, nil
+	}
+	switch draft {
+	case "true":
+		return true, nil
+	case "false":
+		return false, nil
+	}
+	return false, fmt.Errorf(
+		"Invalid value for draft %s. expected true or false",
+		draft,
+	)
 }
 
 type blogTemplate struct {
@@ -385,8 +413,8 @@ func generateIndexNode(rpi rootPageInfo) (Node, error) {
 	}, nil
 }
 
-func BuildFromEntries(entries []Entry) (Site, error) {
-	sb, err := newSiteBuilder(entries)
+func BuildFromEntries(entries []Entry, buildDrafts bool) (Site, error) {
+	sb, err := newSiteBuilder(entries, buildDrafts)
 	if err != nil {
 		return Site{}, fmt.Errorf("failed to build site: %w", err)
 	}
@@ -450,9 +478,10 @@ func findThemeName(entries []Entry, theme string) (string, error) {
 }
 
 type SiteConfig struct {
-	Author string
-	Title  string
-	Theme  string
+	Author      string
+	Title       string
+	Theme       string
+	BuildDrafts bool
 }
 
 type Site struct {

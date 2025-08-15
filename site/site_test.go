@@ -210,7 +210,7 @@ func TestNewSiteBuilder(t *testing.T) {
 		{
 			[]Entry{
 				defaultSsgTomlEntry(), defaultThemeDirEntry(),
-			}, SiteConfig{"test author", "test blog", "/themes/dark.css"}, nil,
+			}, SiteConfig{"test author", "test blog", "/themes/dark.css", false}, nil,
 		},
 		{
 			[]Entry{
@@ -230,7 +230,7 @@ func TestNewSiteBuilder(t *testing.T) {
 
 	for i, tt := range tests {
 		t.Run(fmt.Sprintf("test_%d", i), func(t *testing.T) {
-			sb, err := newSiteBuilder(tt.entries)
+			sb, err := newSiteBuilder(tt.entries, false)
 			if !errEqual(err, tt.expectedErr) {
 				t.Fatalf("wrong err. expected=%q. got=%q", tt.expectedErr, err)
 			}
@@ -246,6 +246,214 @@ func TestNewSiteBuilder(t *testing.T) {
 	}
 }
 
+func TestIsDraft(t *testing.T) {
+	tests := []struct {
+		md          string
+		expected    bool
+		expectedErr error
+	}{
+		{`
++++
+title=test
+draft=true
++++
+`,
+			true, nil,
+		},
+		{`
++++
+title=test
++++
+`,
+			false, nil,
+		},
+		{`
++++
+title=test
+draft = false
++++
+`,
+			false, nil,
+		},
+		{`
++++
+title=test
+draft = 420
++++
+`,
+			false, fmt.Errorf("Invalid value for draft 420. expected true or false"),
+		},
+		{`
++++
+title=test
+draft = !false
++++
+`,
+			false, fmt.Errorf("Invalid value for draft !false. expected true or false"),
+		},
+		{`
++++
+title=test
+draft = !true
++++
+`,
+			false, fmt.Errorf("Invalid value for draft !true. expected true or false"),
+		},
+	}
+
+	for i, tt := range tests {
+		t.Run(fmt.Sprintf("test_%d", i), func(t *testing.T) {
+			doc, err := markdown.ToHTML([]byte(tt.md))
+			if err != nil {
+				t.Fatalf("markdown.ToHTMl failed: %v", err)
+			}
+			b, err := isDraft(doc)
+			if !errEqual(err, tt.expectedErr) {
+				t.Fatalf("wrong err. expected=%v got=%v", tt.expectedErr, err)
+			}
+			if b != tt.expected {
+				t.Errorf(
+					"wrong isDraft value. expected=%v got=%v",
+					tt.expected,
+					b,
+				)
+			}
+		})
+	}
+}
+
+func mdToHTML(t *testing.T, md string) markdown.HTMLDoc {
+	doc, err := markdown.ToHTML([]byte(md))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return doc
+}
+
+func TestBuildDrafts(t *testing.T) {
+	indexMarkdown := "+++\ntitle = Index\n+++\nindex"
+	indexHTML := mdToHTML(t, indexMarkdown).Content
+
+	draftMarkdown := `
++++
+title = "some blog"
+draft = true
++++
+hello
+`
+	draftDoc := mdToHTML(t, draftMarkdown)
+	draftHTML, err := generateBlogHTML(draftDoc, "/themes/dark.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	nonDraftMarkdown := `
++++
+title = "some blog"
++++
+hello
+`
+	nonDraftDoc := mdToHTML(t, nonDraftMarkdown)
+	nonDraftHTML, err := generateBlogHTML(nonDraftDoc, "/themes/dark.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		buildDrafts bool
+		entries     []Entry
+		expected    []Node
+	}{
+		{
+			true,
+			[]Entry{
+				defaultSsgTomlEntry(),
+				defaultThemeDirEntry(),
+				&testEntry{
+					name:    "index.md",
+					typ:     FileEntry,
+					content: indexMarkdown,
+				},
+				&testEntry{
+					name:    "draft.md",
+					typ:     FileEntry,
+					content: draftMarkdown,
+				},
+				&testEntry{
+					name:    "nondraft.md",
+					typ:     FileEntry,
+					content: nonDraftMarkdown,
+				},
+			},
+			[]Node{
+				defaultSsgTomlNode(),
+				defaultThemeDirNode(),
+				{
+					Name:    "index.html",
+					Type:    HTMLNode,
+					Content: indexHTML,
+				},
+				{
+					Name:    "draft.html",
+					Type:    HTMLNode,
+					Content: draftHTML,
+				},
+				{
+					Name:    "nondraft.html",
+					Type:    HTMLNode,
+					Content: nonDraftHTML,
+				},
+			},
+		},
+		{
+			false,
+			[]Entry{
+				defaultSsgTomlEntry(),
+				defaultThemeDirEntry(),
+				&testEntry{
+					name:    "index.md",
+					typ:     FileEntry,
+					content: indexMarkdown,
+				},
+				&testEntry{
+					name:    "draft.md",
+					typ:     FileEntry,
+					content: draftMarkdown,
+				},
+				&testEntry{
+					name:    "nondraft.md",
+					typ:     FileEntry,
+					content: nonDraftMarkdown,
+				},
+			},
+			[]Node{
+				defaultSsgTomlNode(),
+				defaultThemeDirNode(),
+				{
+					Name:    "index.html",
+					Type:    HTMLNode,
+					Content: indexHTML,
+				},
+				{
+					Name:    "nondraft.html",
+					Type:    HTMLNode,
+					Content: nonDraftHTML,
+				},
+			},
+		},
+	}
+
+	for i, tt := range tests {
+		t.Run(fmt.Sprintf("test_%d", i), func(t *testing.T) {
+			site, err := BuildFromEntries(tt.entries, tt.buildDrafts)
+			if err != nil {
+				t.Fatal("BuildFromEntries failed:", err)
+			}
+			testNodesEqual(t, site.Nodes, tt.expected)
+		})
+	}
+}
+
 func TestParseConfig(t *testing.T) {
 	tests := []struct {
 		entries        []Entry
@@ -256,7 +464,7 @@ func TestParseConfig(t *testing.T) {
 		{
 			[]Entry{defaultThemeDirEntry()},
 			defaultSsgToml(),
-			SiteConfig{"test author", "test blog", "/themes/dark.css"},
+			SiteConfig{"test author", "test blog", "/themes/dark.css", false},
 			nil,
 		},
 		{
@@ -328,12 +536,7 @@ theme = "dark"
 
 func TestBuildFromEntries(t *testing.T) {
 	indexMarkdown := "+++\ntitle = Index\n+++\nindex"
-	doc, err := markdown.ToHTML([]byte(indexMarkdown))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	indexHTML := doc.Content
+	indexHTML := mdToHTML(t, indexMarkdown).Content
 
 	innerMarkdown := `
 +++
@@ -451,7 +654,7 @@ hello
 
 	for i, tt := range tests {
 		t.Run(fmt.Sprintf("test_%d", i), func(t *testing.T) {
-			site, err := BuildFromEntries(tt.entries)
+			site, err := BuildFromEntries(tt.entries, false)
 			if err != nil {
 				t.Fatal("BuildFromEntries failed:", err)
 			}
