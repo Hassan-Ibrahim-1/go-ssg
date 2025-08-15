@@ -342,6 +342,13 @@ func TestParseArgs(t *testing.T) {
 			},
 			nil,
 		},
+		{
+			"dev site --port",
+			Action{},
+			fmt.Errorf(
+				"failed to parse options: expected a number to be given for port. ex: --port=4200",
+			),
+		},
 	}
 
 	for _, tt := range tests {
