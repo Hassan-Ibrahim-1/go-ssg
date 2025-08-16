@@ -78,12 +78,13 @@ usage:
     -- create a cli for ssg
         -- pass a flag to site to tell it whether to include drafts or not
         -- it should strip out all md files with the draft = true header
-    write a decent css theme
+    -- write a decent css theme
+
+    generate an rss feed
 
     be able to place html files and markdown files. html files still contain the required metadata using +++
         -- what should be done with custom html files?
 
-    generate an rss feed
 
     -- read metadata from blogs
         - author
