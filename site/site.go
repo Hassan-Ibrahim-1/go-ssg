@@ -172,19 +172,24 @@ func stripEntryPrefix(de *directoryEntry, prefix string) {
 	}
 }
 
-func Build(dir string, buildDrafts bool) (Site, error) {
+type BuildOptions struct {
+	BuildDrafts        bool
+	EnableHotReloading bool
+}
+
+func Build(dir string, opts BuildOptions) (Site, error) {
 	entries, err := loadDirectoryEntries(dir)
 	if err != nil {
 		return Site{}, err
 	}
-	return BuildFromEntries(entries, buildDrafts)
+	return BuildFromEntries(entries, opts)
 }
 
 type siteBuilder struct {
 	config SiteConfig
 }
 
-func newSiteBuilder(entries []Entry, buildDrafts bool) (siteBuilder, error) {
+func newSiteBuilder(entries []Entry, opts BuildOptions) (siteBuilder, error) {
 	for _, entry := range entries {
 		if entry.Name() == "ssg.toml" {
 			ssgToml := entry.Content()
@@ -195,7 +200,8 @@ func newSiteBuilder(entries []Entry, buildDrafts bool) (siteBuilder, error) {
 					err,
 				)
 			}
-			config.BuildDrafts = buildDrafts
+			config.BuildDrafts = opts.BuildDrafts
+			config.EnableHotReloading = opts.EnableHotReloading
 			return siteBuilder{config}, nil
 		}
 	}
@@ -233,11 +239,7 @@ func (sb *siteBuilder) build(entries []Entry) (Site, error) {
 		}
 	}
 
-	if contentNode == nil {
-		return Site{}, fmt.Errorf("project root has no content directory")
-	}
-
-	if !indexFound {
+	if !indexFound && contentNode != nil {
 		node, err := generateIndexNode(
 			rootPageInfo{
 				Title:       sb.config.Title,
@@ -326,7 +328,11 @@ func (sb *siteBuilder) buildNode(entry Entry) (*Node, error) {
 				}
 			}
 
-			content, err = generateBlogHTML(doc, sb.config.Theme)
+			config := blogConfig{
+				theme:              sb.config.Theme,
+				enableHotReloading: sb.config.EnableHotReloading,
+			}
+			content, err = generateBlogHTML(doc, config)
 			if err != nil {
 				return nil, fmt.Errorf(
 					"failed to generate blog html for %s: %w",
@@ -366,19 +372,28 @@ func isDraft(doc markdown.HTMLDoc) (bool, error) {
 	)
 }
 
-type blogTemplate struct {
-	Title         string
-	AuthorName    string
-	Theme         string
-	PublishedDate string
-	Blog          template.HTML
-}
-
 //go:embed templates/blog.html
 var blogRes string
 var blogTmpl = template.Must(template.New("blog").Parse(blogRes))
 
-func generateBlogHTML(doc markdown.HTMLDoc, theme string) ([]byte, error) {
+type blogConfig struct {
+	theme              string
+	enableHotReloading bool
+}
+
+func generateBlogHTML(
+	doc markdown.HTMLDoc,
+	config blogConfig,
+) ([]byte, error) {
+	type blogTemplate struct {
+		Title              string
+		AuthorName         string
+		Theme              string
+		PublishedDate      string
+		Blog               template.HTML
+		EnableHotReloading bool
+	}
+
 	author, _ := doc.Metadata["author"]
 
 	dateString, _ := doc.Metadata["date"]
@@ -389,11 +404,12 @@ func generateBlogHTML(doc markdown.HTMLDoc, theme string) ([]byte, error) {
 	}
 
 	blogInfo := blogTemplate{
-		Title:         title,
-		Theme:         theme,
-		AuthorName:    author,
-		PublishedDate: dateString,
-		Blog:          template.HTML(doc.Content),
+		Title:              title,
+		Theme:              config.theme,
+		EnableHotReloading: config.enableHotReloading,
+		AuthorName:         author,
+		PublishedDate:      dateString,
+		Blog:               template.HTML(doc.Content),
 	}
 
 	var buf bytes.Buffer
@@ -466,8 +482,8 @@ func generateIndexNode(rpi rootPageInfo) (Node, error) {
 	}, nil
 }
 
-func BuildFromEntries(entries []Entry, buildDrafts bool) (Site, error) {
-	sb, err := newSiteBuilder(entries, buildDrafts)
+func BuildFromEntries(entries []Entry, opts BuildOptions) (Site, error) {
+	sb, err := newSiteBuilder(entries, opts)
 	if err != nil {
 		return Site{}, fmt.Errorf("failed to build site: %w", err)
 	}
@@ -531,10 +547,11 @@ func findThemeName(entries []Entry, theme string) (string, error) {
 }
 
 type SiteConfig struct {
-	Author      string
-	Title       string
-	Theme       string
-	BuildDrafts bool
+	Author             string
+	Title              string
+	Theme              string
+	BuildDrafts        bool
+	EnableHotReloading bool
 }
 
 type Site struct {

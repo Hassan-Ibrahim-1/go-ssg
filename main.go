@@ -44,7 +44,8 @@ func main() {
 	case BuildSite:
 		opts := action.buildSiteOpts
 
-		s, err := site.Build(action.siteDir, opts.buildDrafts)
+		buildOpts := site.BuildOptions{BuildDrafts: opts.buildDrafts}
+		s, err := site.Build(action.siteDir, buildOpts)
 		if err != nil {
 			log.Fatalln(err)
 		}

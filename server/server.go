@@ -48,7 +48,12 @@ func (s *Server) Close() error {
 }
 
 func New(addr, dir string, buildDrafts bool) (*Server, error) {
-	st, err := site.Build(dir, buildDrafts)
+	buildOpts := site.BuildOptions{
+		BuildDrafts:        buildDrafts,
+		EnableHotReloading: true,
+	}
+
+	st, err := site.Build(dir, buildOpts)
 	if err != nil {
 		log.Fatalln("failed to build site:", err)
 	}
@@ -88,7 +93,12 @@ func New(addr, dir string, buildDrafts bool) (*Server, error) {
 }
 
 func (s *Server) rebuild() {
-	newSite, err := site.Build(s.dir, s.site.Config.BuildDrafts)
+	buildOpts := site.BuildOptions{
+		BuildDrafts:        s.site.Config.BuildDrafts,
+		EnableHotReloading: true,
+	}
+
+	newSite, err := site.Build(s.dir, buildOpts)
 	if err != nil {
 		log.Println("failed to build site:", err)
 		return
@@ -299,7 +309,6 @@ func newNodeHandler(nodes []site.Node) (*http.ServeMux, error) {
 			mux.HandleFunc(
 				"/",
 				func(w http.ResponseWriter, r *http.Request) {
-					fmt.Println("/ is handling the request for", r.URL.Path)
 					w.Header().Set("Content-Type", "text/html")
 					w.Write(node.Content)
 				},

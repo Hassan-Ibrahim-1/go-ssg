@@ -141,7 +141,7 @@ func TestBuildSite(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	site, err := Build(siteDir, false)
+	site, err := Build(siteDir, BuildOptions{})
 	if err != nil {
 		t.Fatalf("failed to build site: %v", err)
 	}

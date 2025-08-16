@@ -210,7 +210,7 @@ func TestNewSiteBuilder(t *testing.T) {
 		{
 			[]Entry{
 				defaultSsgTomlEntry(), defaultThemeDirEntry(),
-			}, SiteConfig{"test author", "test blog", "/themes/dark.css", false}, nil,
+			}, SiteConfig{"test author", "test blog", "/themes/dark.css", false, false}, nil,
 		},
 		{
 			[]Entry{
@@ -230,7 +230,7 @@ func TestNewSiteBuilder(t *testing.T) {
 
 	for i, tt := range tests {
 		t.Run(fmt.Sprintf("test_%d", i), func(t *testing.T) {
-			sb, err := newSiteBuilder(tt.entries, false)
+			sb, err := newSiteBuilder(tt.entries, BuildOptions{})
 			if !errEqual(err, tt.expectedErr) {
 				t.Fatalf("wrong err. expected=%q. got=%q", tt.expectedErr, err)
 			}
@@ -342,7 +342,10 @@ draft = true
 hello
 `
 	draftDoc := mdToHTML(t, draftMarkdown)
-	draftHTML, err := generateBlogHTML(draftDoc, "/themes/dark.css")
+	draftHTML, err := generateBlogHTML(
+		draftDoc,
+		blogConfig{theme: "/themes/dark.css"},
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -354,7 +357,10 @@ title = "some blog"
 hello
 `
 	nonDraftDoc := mdToHTML(t, nonDraftMarkdown)
-	nonDraftHTML, err := generateBlogHTML(nonDraftDoc, "/themes/dark.css")
+	nonDraftHTML, err := generateBlogHTML(
+		nonDraftDoc,
+		blogConfig{theme: "/themes/dark.css"},
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -445,7 +451,10 @@ hello
 
 	for i, tt := range tests {
 		t.Run(fmt.Sprintf("test_%d", i), func(t *testing.T) {
-			site, err := BuildFromEntries(tt.entries, tt.buildDrafts)
+			site, err := BuildFromEntries(
+				tt.entries,
+				BuildOptions{BuildDrafts: tt.buildDrafts},
+			)
 			if err != nil {
 				t.Fatal("BuildFromEntries failed:", err)
 			}
@@ -464,7 +473,13 @@ func TestParseConfig(t *testing.T) {
 		{
 			[]Entry{defaultThemeDirEntry()},
 			defaultSsgToml(),
-			SiteConfig{"test author", "test blog", "/themes/dark.css", false},
+			SiteConfig{
+				"test author",
+				"test blog",
+				"/themes/dark.css",
+				false,
+				false,
+			},
 			nil,
 		},
 		{
@@ -549,7 +564,10 @@ hello
 		t.Fatal(err)
 	}
 
-	innerHTML, err := generateBlogHTML(innerContentDoc, "/themes/dark.css")
+	innerHTML, err := generateBlogHTML(
+		innerContentDoc,
+		blogConfig{theme: "/themes/dark.css"},
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -654,7 +672,7 @@ hello
 
 	for i, tt := range tests {
 		t.Run(fmt.Sprintf("test_%d", i), func(t *testing.T) {
-			site, err := BuildFromEntries(tt.entries, false)
+			site, err := BuildFromEntries(tt.entries, BuildOptions{})
 			if err != nil {
 				t.Fatal("BuildFromEntries failed:", err)
 			}
@@ -739,7 +757,7 @@ hello
 				t.Fatal(err)
 			}
 
-			html, err := generateBlogHTML(doc, tt.theme)
+			html, err := generateBlogHTML(doc, blogConfig{theme: tt.theme})
 			if err != nil {
 				t.Fatalf("generateBlogHTML failed: %v", err)
 			}
