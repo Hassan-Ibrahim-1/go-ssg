@@ -3,15 +3,18 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>{{.Title}}</title>
+        <title>{{.SiteTitle}}</title>
         <link rel="stylesheet" href="{{.Theme}}" />
     </head>
     <body>
-        <h1 id="blog-title">{{.Title}}</h1>
+        <h1 id="blog-title">{{.SiteTitle}}</h1>
 
         <div id="blog-list">
             {{range .Blogs}}
-            <li class="blog-item">{{.Name}}</li>
+            <a class="blog-item" href="{{.Link}}">
+                <p class="blog-item-title">{{.Title}}</p>
+                <p class="blog-item-date">{{.Date}}</p>
+            </a>
             {{end}}
         </div>
     </body>

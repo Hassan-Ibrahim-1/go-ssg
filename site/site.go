@@ -35,6 +35,7 @@ type Node struct {
 	// nil if Type is DirectoryNode
 	Content  []byte
 	Children []Node
+	Metadata map[string]string
 }
 
 func (n Node) String() string {
@@ -207,8 +208,14 @@ func (sb *siteBuilder) build(entries []Entry) (Site, error) {
 		return Site{}, err
 	}
 
+	var contentNode *Node
+
 	indexFound := false
 	for i, node := range nodes {
+		if node.Name == "content" {
+			contentNode = &node
+		}
+
 		if strings.HasSuffix(node.Name, "index.html") {
 			indexFound = true
 
@@ -226,12 +233,16 @@ func (sb *siteBuilder) build(entries []Entry) (Site, error) {
 		}
 	}
 
+	if contentNode == nil {
+		return Site{}, fmt.Errorf("project root has no content directory")
+	}
+
 	if !indexFound {
 		node, err := generateIndexNode(
 			rootPageInfo{
-				Title: sb.config.Title,
-				Theme: sb.config.Theme,
-				Blogs: nodes,
+				Title:       sb.config.Title,
+				Theme:       sb.config.Theme,
+				ContentNode: *contentNode,
 			},
 		)
 		if err != nil {
@@ -293,11 +304,14 @@ func (sb *siteBuilder) buildNode(entry Entry) (*Node, error) {
 		content := entry.Content()
 		nodeType := FileNode
 
+		var metadata map[string]string
+
 		// convert all markdown files to html
 		if strings.HasSuffix(name, MarkdownExtension) {
 			extensionIndex := len(name) - len(MarkdownExtension)
 			name = name[:extensionIndex] + ".html"
 			doc, err := markdown.ToHTML(content)
+			metadata = doc.Metadata
 			if err != nil {
 				return nil, fmt.Errorf("markdown.ToHTML failed: %w", err)
 			}
@@ -328,6 +342,7 @@ func (sb *siteBuilder) buildNode(entry Entry) (*Node, error) {
 			Type:     nodeType,
 			Children: nil,
 			Content:  content,
+			Metadata: metadata,
 		}, nil
 	}
 	// unreachable
@@ -358,9 +373,6 @@ type blogTemplate struct {
 	PublishedDate string
 	Blog          template.HTML
 }
-
-// dd-mm-yyyy
-const dateLayout = "02-01-2006"
 
 //go:embed templates/blog.html
 var blogRes string
@@ -398,14 +410,50 @@ var indexRes string
 var indexTmpl = template.Must(template.New("index").Parse(indexRes))
 
 type rootPageInfo struct {
-	Title string
-	Blogs []Node
-	Theme string
+	Title       string
+	ContentNode Node
+	Theme       string
 }
 
 func generateIndexNode(rpi rootPageInfo) (Node, error) {
+	type BlogItem struct {
+		Title string
+		Link  string
+		Date  string
+	}
+
+	type TemplateData struct {
+		SiteTitle string
+		Theme     string
+		Blogs     []BlogItem
+	}
+
+	blogItems := make([]BlogItem, len(rpi.ContentNode.Children))
+
+	for i, node := range rpi.ContentNode.Children {
+		date := ""
+		if node.Metadata != nil {
+			date, _ = node.Metadata["date"]
+		}
+
+		name := strings.TrimPrefix(node.Name, "content/")
+		name = strings.TrimSuffix(name, filepath.Ext(name))
+
+		blogItems[i] = BlogItem{
+			Title: name,
+			Link:  "/" + node.Name,
+			Date:  date,
+		}
+	}
+
+	tmplData := TemplateData{
+		SiteTitle: rpi.Title,
+		Theme:     rpi.Theme,
+		Blogs:     blogItems,
+	}
+
 	var html bytes.Buffer
-	err := indexTmpl.Execute(&html, rpi)
+	err := indexTmpl.Execute(&html, tmplData)
 	if err != nil {
 		return Node{}, err
 	}

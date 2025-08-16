@@ -68,8 +68,6 @@ func clearDirectory(dir string) error {
 			continue
 		}
 
-		fmt.Printf("entry name: %s\n", entry.Name())
-
 		err = os.RemoveAll(filepath.Join(dir, entry.Name()))
 		if err != nil {
 			return fmt.Errorf("os.Remove failed: %w", err)

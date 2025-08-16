@@ -1,14 +1,8 @@
 +++
-title = a new title
+title = A post
 draft = true
 +++
 
-## Blog.md
+Hey
 
-* up
-
-[x] **hey from /content/blog.md**
-
-[blog](/content/index.html)
-
-[root](/index.html)
+[root](/)

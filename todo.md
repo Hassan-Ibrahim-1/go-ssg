@@ -83,6 +83,8 @@ usage:
     be able to place html files and markdown files. html files still contain the required metadata using +++
         -- what should be done with custom html files?
 
+    generate an rss feed
+
     -- read metadata from blogs
         - author
         - title
