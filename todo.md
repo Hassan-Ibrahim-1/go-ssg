@@ -1,4 +1,4 @@
-# TODO
+# SSG
 Be able to convert markdown files to html
 upload that site to github
 document work on some projects that im working on
@@ -55,50 +55,7 @@ usage:
         - theme
         - should drafts be built
 
-### Tomorrow
-
-    -- create html templates to integrate meta data into
-    -- create an index.html file that contains a blog list
-    -- fix server/. write a proper handler for routing to nodes
-    -- figure out how to derive a node's name
-
-    -- toml config file. (themes, website name, deployment info)
-        integrate this toml file into site/
-        it should parse this file and create some struct using it
-        the struct can then be used to alter the generated html. so stuff like themes can be applied on to it
-
-    -- get themes working - there should be a themes/ dir with css files that you can choose in the config file
-
-    -- apply themes to blogs as well
-    -- fix tests
-
-    -- server hot reloading
-    -- be able to fully build the project
-    -- figure out how to deploy to github pages
-    -- create a cli for ssg
-        -- pass a flag to site to tell it whether to include drafts or not
-        -- it should strip out all md files with the draft = true header
-    -- write a decent css theme
-
-    generate an rss feed
-
-    be able to place html files and markdown files. html files still contain the required metadata using +++
-        -- what should be done with custom html files?
-
-
-    -- read metadata from blogs
-        - author
-        - title
-        - date published
-        - description
-        - tags [zig, go, programming, etc]
-        - draft
-
-    -- create a web server using site.Nodes
-    -- in nodes the file extension should be replaced from ".md" to ".html" when converting
-
-    figure out how to convert links in md files to other md files to html links
-        maybe links should just have a .html ext
-
+### TODO
+    home bar, img & code styling
     give the user access to site data using special commands like @title() / @author()
         or maybe go's templates can still be used?
