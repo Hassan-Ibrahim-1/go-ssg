@@ -329,6 +329,7 @@ func (sb *siteBuilder) buildNode(entry Entry) (*Node, error) {
 			}
 
 			config := blogConfig{
+				siteTitle:          sb.config.Title,
 				theme:              sb.config.Theme,
 				enableHotReloading: sb.config.EnableHotReloading,
 			}
@@ -377,6 +378,7 @@ var blogRes string
 var blogTmpl = template.Must(template.New("blog").Parse(blogRes))
 
 type blogConfig struct {
+	siteTitle          string
 	theme              string
 	enableHotReloading bool
 }
@@ -386,6 +388,7 @@ func generateBlogHTML(
 	config blogConfig,
 ) ([]byte, error) {
 	type blogTemplate struct {
+		SiteTitle          string
 		Title              string
 		AuthorName         string
 		Theme              string
@@ -404,6 +407,7 @@ func generateBlogHTML(
 	}
 
 	blogInfo := blogTemplate{
+		SiteTitle:          config.siteTitle,
 		Title:              title,
 		Theme:              config.theme,
 		EnableHotReloading: config.enableHotReloading,
