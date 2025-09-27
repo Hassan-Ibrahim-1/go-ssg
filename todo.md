@@ -56,6 +56,15 @@ usage:
         - should drafts be built
 
 ### TODO
-    home bar, img & code styling
-    give the user access to site data using special commands like @title() / @author()
-        or maybe go's templates can still be used?
+home bar, img & code styling
+give the user access to site data using special commands like @title() / @author()
+    or maybe go's templates can still be used?
+
+fix bug with spaces in file names - sanitize file names before creating an endpoint
+ssg init, copy basic themes, create a example.md in content, create a basic ssg.toml
+sort articles based on date (do this in js)
+articles names should be metadata.name not end point name
+
+being able to create a list of article groups in / instead of a list of all
+blogs. could help with some level of organization for notes. this should be
+optional though. This could easily be done with a custom index.html / index.md
