@@ -457,7 +457,6 @@ func generateIndexNode(rpi rootPageInfo) (Node, error) {
 		}
 
 		title := node.Metadata["title"]
-		title = strings.TrimSuffix(title, filepath.Ext(title))
 
 		blogItems[i] = BlogItem{
 			Title: title,
