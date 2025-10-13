@@ -456,11 +456,11 @@ func generateIndexNode(rpi rootPageInfo) (Node, error) {
 			date, _ = node.Metadata["date"]
 		}
 
-		name := strings.TrimPrefix(node.Name, "content/")
-		name = strings.TrimSuffix(name, filepath.Ext(name))
+		title := node.Metadata["title"]
+		title = strings.TrimSuffix(title, filepath.Ext(title))
 
 		blogItems[i] = BlogItem{
-			Title: name,
+			Title: title,
 			Link:  "/" + node.Name,
 			Date:  date,
 		}

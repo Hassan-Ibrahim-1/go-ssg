@@ -344,7 +344,7 @@ hello
 	draftDoc := mdToHTML(t, draftMarkdown)
 	draftHTML, err := generateBlogHTML(
 		draftDoc,
-		blogConfig{theme: "/themes/dark.css"},
+		blogConfig{siteTitle: "test blog", theme: "/themes/dark.css"},
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -359,7 +359,7 @@ hello
 	nonDraftDoc := mdToHTML(t, nonDraftMarkdown)
 	nonDraftHTML, err := generateBlogHTML(
 		nonDraftDoc,
-		blogConfig{theme: "/themes/dark.css"},
+		blogConfig{siteTitle: "test blog", theme: "/themes/dark.css"},
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -566,7 +566,7 @@ hello
 
 	innerHTML, err := generateBlogHTML(
 		innerContentDoc,
-		blogConfig{theme: "/themes/dark.css"},
+		blogConfig{siteTitle: "test blog", theme: "/themes/dark.css"},
 	)
 	if err != nil {
 		t.Fatal(err)
