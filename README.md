@@ -9,3 +9,8 @@ Refer to test-website/ for an example of how to structure your project.
 To build your project use `go-ssg build`.
 
 Use the `--draft` flag to enable/disable the inclusion of drafts in the development server or the final build.
+
+### Known Bugs
+
+* Files can't have whitespace or other weird characters in them.
+* Blogs aren't sorted by date.
