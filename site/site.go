@@ -7,7 +7,9 @@ import (
 	"html/template"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
+	"time"
 
 	"github.com/Hassan-Ibrahim-1/go-ssg/markdown"
 	"github.com/Hassan-Ibrahim-1/go-ssg/toml"
@@ -29,12 +31,17 @@ const (
 	FileEntry
 )
 
+const DateLayout = "02-01-2006"
+
 type Node struct {
+	// Name is the file name of the entry this Node is based on.
+	// Use Metadata["title"] to the get the Node's title.
 	Name string
 	Type NodeType
 	// nil if Type is DirectoryNode
 	Content  []byte
 	Children []Node
+	// It is guaranteed that this contains the keys 'title' and 'date'
 	Metadata map[string]string
 }
 
@@ -262,6 +269,7 @@ func (sb *siteBuilder) build(entries []Entry) (Site, error) {
 
 func (sb *siteBuilder) buildNodes(entries []Entry) ([]Node, error) {
 	nodes := make([]Node, 0, len(entries))
+
 	for _, entry := range entries {
 		node, err := sb.buildNode(entry)
 		if err != nil {
@@ -273,6 +281,33 @@ func (sb *siteBuilder) buildNodes(entries []Entry) ([]Node, error) {
 
 		nodes = append(nodes, *node)
 	}
+
+	for i := range nodes {
+		if nodes[i].Type != HTMLNode {
+			continue
+		}
+
+	}
+
+	slices.SortFunc(nodes, func(a, b Node) int {
+		if a.Type != HTMLNode || b.Type != HTMLNode {
+			return 0
+		}
+
+		// TODO: this can be made way better. cache dates
+
+		dA, err := time.Parse(DateLayout, a.Metadata["date"])
+		if err != nil {
+			panic(fmt.Sprintf("unreachable: %s", err))
+		}
+
+		dB, err := time.Parse(DateLayout, b.Metadata["date"])
+		if err != nil {
+			panic("unreachable")
+		}
+
+		return dB.Compare(dA)
+	})
 
 	return nodes, nil
 }
@@ -399,7 +434,13 @@ func generateBlogHTML(
 
 	author, _ := doc.Metadata["author"]
 
-	dateString, _ := doc.Metadata["date"]
+	dateString, ok := doc.Metadata["date"]
+	if !ok {
+		return nil, fmt.Errorf("blog date not found")
+	}
+	if err := isValidDate(dateString); err != nil {
+		return nil, err
+	}
 
 	title, ok := doc.Metadata["title"]
 	if !ok {
@@ -435,6 +476,11 @@ type rootPageInfo struct {
 	Theme       string
 }
 
+func isValidDate(s string) error {
+	_, err := time.Parse(DateLayout, s)
+	return err
+}
+
 func generateIndexNode(rpi rootPageInfo) (Node, error) {
 	type BlogItem struct {
 		Title string
@@ -451,13 +497,8 @@ func generateIndexNode(rpi rootPageInfo) (Node, error) {
 	blogItems := make([]BlogItem, len(rpi.ContentNode.Children))
 
 	for i, node := range rpi.ContentNode.Children {
-		date := ""
-		if node.Metadata != nil {
-			date, _ = node.Metadata["date"]
-		}
-
+		date := node.Metadata["date"]
 		title := node.Metadata["title"]
-
 		blogItems[i] = BlogItem{
 			Title: title,
 			Link:  "/" + node.Name,

@@ -791,6 +791,31 @@ hello
 	}
 }
 
+func TestIsValidDate(t *testing.T) {
+	tests := []struct {
+		date        string
+		expectError bool
+	}{
+		{"01-01-2000", false},
+		{"2000-01-01", true},
+	}
+
+	for i, tt := range tests {
+		t.Run(fmt.Sprintf("test_%d", i), func(t *testing.T) {
+			err := isValidDate(tt.date)
+			hadError := err != nil
+			if hadError != tt.expectError {
+				t.Errorf(
+					"expected=%v got=%v err=%s",
+					tt.expectError,
+					hadError,
+					err,
+				)
+			}
+		})
+	}
+}
+
 func errEqual(err1, err2 error) bool {
 	if err1 == nil && err2 == nil {
 		return true
