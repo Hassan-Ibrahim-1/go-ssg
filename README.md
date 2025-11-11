@@ -13,4 +13,3 @@ Use the `--draft` flag to enable/disable the inclusion of drafts in the developm
 ### Known Bugs
 
 * Files can't have whitespace or other weird characters in them.
-* Blogs aren't sorted by date.
